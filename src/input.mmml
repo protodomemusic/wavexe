@@ -1,0 +1,66 @@
+%===================================================================%
+% TITLE      : wavexe test
+% COMPOSER   : Blake 'PROTODOME' Troise
+% PROGRAMMER : " " "
+% DATE       : 03/05/21
+% NOTES      : Quick file to test/document wavexe features.
+%              Build me using the latest version of this:
+%              github.com/protodomemusic/mmml/tree/master/compiler
+%===================================================================%
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL A %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o2 i0
+
+[2 i0 v6 c1&c1 i1 v6 g1&g2. i2 g4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL B %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o3
+
+[2 i0 v6 g1&g1 i1 v6 f1&f2. i2 f4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL C %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o4
+
+[2 i0 v6 e1&e1 i1 v6 a1&a2. i2 a4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL D %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o4
+
+[2 i0 v6 d1&d1 i1 v6 c1&c2. i2 c4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL E %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o4
+
+[2 i0 v6 a1&a1 i1 v6 f1&f2. i2 f4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL F %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o4
+
+[2 i0 v6 b1&b1 i1 v6 d1&d2. i2 d4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL G %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o5
+
+[2 i0 v5 f#1&f#1 i0 v5 g1&g2. a4 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL H %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+% remember, last channel is always the sampler
+% you can pitch the sampler using the octave commands
+@ r4 t60
+
+[2 [3 m1 v3 f#16 v8 d128&r32&r64. v4 c#16 v6 c16 v8 o5 d16 f#16 o3 v7 e16 v7 d#16 ]
+m1 v3 f#16 v8 d128&r32&r64. v4 e16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16 ]
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-%   MACRO   %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+% m1 - main kit loop
+@ o3 v8 c16 v2 f#16 v4 c#16 v6 c16 v8 o4 d16 o3 f#16 v3 c#16 v8 d128&r32&r64.
+
+%===================================================================%
