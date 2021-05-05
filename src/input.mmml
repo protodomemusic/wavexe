@@ -55,8 +55,8 @@
 % you can pitch the sampler using the octave commands
 @ r4 t60
 
-[2 [3 m1 v3 f#16 v8 d128&r32&r64. v4 c#16 v6 c16 v8 o5 d16 f#16 o3 v7 e16 v7 d#16 ]
-m1 v3 f#16 v8 d128&r32&r64. v4 e16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16 ]
+[2 [3 m1 v3 f#16 v8 d128&r32&r64. v4 c#16 v6 c16 v8 o5 d16 f#16 o4 v7 g#16 v7 a16 ]
+m1 v3 f#16 v5 o4 g16 v6 o2 g16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16 ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%   MACRO   %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 

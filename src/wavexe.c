@@ -35,6 +35,8 @@
 *                - Vibrato.
 *                - Portamento.
 *                - Stereo.
+*                - Fancy DSP maths stuff like limiters, reverb
+*                  and filters.
 *
 *  AUTHOR:       Blake 'PROTODOME' Troise
 *  PLATFORM:     Command Line Application (Windows/MacOS/Linux)
@@ -602,9 +604,10 @@ void configure_instrument(unsigned char voice, unsigned char instrument_id)
 	{
 		// rising epiano
 		case 0:
+			osc_sample      [voice] = 8;
+
 			mmml_env_type   [voice] = 0;
 			mmml_env_length [voice] = 150;
-			osc_sample      [voice] = 2;
 			swp_type        [voice] = 2;
 			swp_length      [voice] = 2;
 			swp_target      [voice] = 5;
@@ -612,18 +615,20 @@ void configure_instrument(unsigned char voice, unsigned char instrument_id)
 
 		// epiano swell
 		case 1:
+			osc_sample      [voice] = 8;
+
 			mmml_env_type   [voice] = 1;
 			mmml_env_length [voice] = 150;
-			osc_sample      [voice] = 2;
 			swp_type        [voice] = 0;
 			swp_target      [voice] = 0;
 		break;
 
 		// epiano swell drop
 		case 2:
+			osc_sample      [voice] = 8;
+
 			mmml_env_type   [voice] = 0;
 			mmml_env_length [voice] = 20;
-			osc_sample      [voice] = 2;
 			swp_type        [voice] = 1;
 			swp_length      [voice] = 100;
 			swp_target      [voice] = 1;
