@@ -32,9 +32,9 @@
 *                - Decays take varying lengths depending on the
 *                  starting volume.
 *                - Make volumes ('v' commands) more dynamic.
-*                - Vibrato.
 *                - Portamento.
 *                - Stereo.
+*                - Link LFO to different parameters?
 *                - Fancy DSP maths stuff like limiters, reverb
 *                  and filters.
 *
@@ -43,8 +43,8 @@
 *  DATE:         10th February 2021
 ************************************************************H*/
 
-// #define WAVE_EXPORTER
-#define PIPE_OUTPUT
+#define WAVE_EXPORTER
+//#define PIPE_OUTPUT
 
 #include "wavexe-mmml-data.h"
 #include "wavexe-sample-data.h"
@@ -95,7 +95,6 @@
 // functions of convenience
 void mmml();
 void configure_instrument(unsigned char voice, unsigned char instrument_id);
-void update_wavetable(unsigned char voice, unsigned char sample, unsigned char volume, unsigned char gain);
 
 #ifdef PIPE_OUTPUT
 	// alternative putchar when without stdio.h
@@ -123,61 +122,55 @@ const unsigned int notes[TOTAL_NOTES] =
 };
 
 // oscillator variables
-unsigned int  osc_accumulator   [TOTAL_VOICES];
-unsigned int  osc_pitch         [TOTAL_VOICES];
-unsigned int  osc_target_pitch  [TOTAL_VOICES];
-unsigned int  osc_tie_flag      [TOTAL_VOICES];
+unsigned int  osc_accumulator   [TOTAL_VOICES - 1];
+unsigned int  osc_pitch         [TOTAL_VOICES - 1];
+unsigned int  osc_target_pitch  [TOTAL_VOICES - 1];
+unsigned int  osc_tie_flag      [TOTAL_VOICES - 1];
+unsigned int  osc_sample        [TOTAL_VOICES - 1];
+signed   char osc_volume        [TOTAL_VOICES - 1];
 
-// wavetable variables
-unsigned int  osc_sample        [TOTAL_VOICES];
-signed   char osc_volume        [TOTAL_VOICES];
-signed   char osc_wavetable     [TOTAL_VOICES][WAVETABLE_SIZE];
+// lfo variables
+unsigned int  lfo_accumulator   [TOTAL_VOICES - 1];
+unsigned int  lfo_pitch         [TOTAL_VOICES - 1];
+signed   char lfo_amplitude     [TOTAL_VOICES - 1];
+signed   char lfo_intensity     [TOTAL_VOICES - 1];
+signed   char lfo_waveform      [TOTAL_VOICES - 1];
+signed   int  lfo_output        [TOTAL_VOICES - 1];
+unsigned int  lfo_tick          [TOTAL_VOICES - 1];
+unsigned int  lfo_length        [TOTAL_VOICES - 1];
 
 // envelope variables
-unsigned int  env_length        [TOTAL_VOICES];
-unsigned int  env_tick          [TOTAL_VOICES];
-unsigned char env_type          [TOTAL_VOICES];
+unsigned int  env_length        [TOTAL_VOICES - 1];
+unsigned int  env_tick          [TOTAL_VOICES - 1];
+unsigned char env_type          [TOTAL_VOICES - 1];
 
 // pitch sweep variables
-unsigned char swp_length        [TOTAL_VOICES];
-unsigned int  swp_tick          [TOTAL_VOICES];
-unsigned char swp_type          [TOTAL_VOICES];
-unsigned char swp_target        [TOTAL_VOICES];
-
-// effect variables
-unsigned char osc_gain          [TOTAL_VOICES];
+unsigned char swp_length        [TOTAL_VOICES - 1];
+unsigned int  swp_tick          [TOTAL_VOICES - 1];
+unsigned char swp_type          [TOTAL_VOICES - 1];
+unsigned char swp_target        [TOTAL_VOICES - 1];
 
 // mmml variables
-unsigned char  mmml_octave      [TOTAL_VOICES],
-               mmml_length      [TOTAL_VOICES],
-               mmml_volume      [TOTAL_VOICES],
-               mmml_note        [TOTAL_VOICES],
-               mmml_env_type    [TOTAL_VOICES],
-               loops_active     [TOTAL_VOICES],
-               current_length   [TOTAL_VOICES];
-unsigned int   mmml_env_length  [TOTAL_VOICES],
-               data_pointer     [TOTAL_VOICES],
-               loop_duration    [MAXLOOPS][TOTAL_VOICES],
-               loop_point       [MAXLOOPS][TOTAL_VOICES],
-               pointer_location [TOTAL_VOICES];
-
-// temporary data storage variables
-unsigned char  buffer1       = 0,
-               buffer2       = 0,
-               buffer3       = 0;
-unsigned int   buffer4       = 0;
-
-// main timer variables
-unsigned int   tick_counter  = 0,
-               tick_speed    = 0;
+unsigned char mmml_octave      [TOTAL_VOICES];
+unsigned char mmml_length      [TOTAL_VOICES];
+unsigned char mmml_volume      [TOTAL_VOICES];
+unsigned char mmml_note        [TOTAL_VOICES];
+unsigned char mmml_env_type    [TOTAL_VOICES];
+unsigned int  mmml_env_length  [TOTAL_VOICES];
+unsigned char loops_active     [TOTAL_VOICES];
+unsigned char current_length   [TOTAL_VOICES];
+unsigned int  data_pointer     [TOTAL_VOICES];
+unsigned int  loop_duration    [MAXLOOPS][TOTAL_VOICES];
+unsigned int  loop_point       [MAXLOOPS][TOTAL_VOICES];
+unsigned int  pointer_location [TOTAL_VOICES];
 
 // sampler variables
 unsigned int  sample_slowdown_counter;
 unsigned int  sample_accumulator;
 unsigned int  sample_start;
 unsigned int  sample_end;
-unsigned char current_sample;
-unsigned char pause;
+unsigned char sample_current;
+unsigned char sample_mute;
 
 //===== BEGIN THE PROGRAM =====//
 
@@ -231,7 +224,7 @@ int main(int argc, char *argv[])
 
 	//===== WAVE SAMPLE DATA CODE =====//
 
-	unsigned long current_sample;
+	unsigned long sample_current;
 
 	// initial variables
 	for (unsigned char v = 0; v < TOTAL_VOICES; v++)
@@ -244,7 +237,6 @@ int main(int argc, char *argv[])
 		env_length[v] = 0;
 		swp_type  [v] = 0;
 		swp_length[v] = 0;
-		osc_gain  [v] = 1;
 
 		// mmml default values
 		mmml_volume[v]     = 24;
@@ -254,8 +246,6 @@ int main(int argc, char *argv[])
 
 		data_pointer[v] = (unsigned char)mmml_data[(v*2)] << 8;
 		data_pointer[v] = data_pointer[v] | (unsigned char)mmml_data[(v*2)+1];
-
-		update_wavetable(v,osc_sample[v],osc_volume[v],osc_gain[v]);
 	}
 
 	//=====================//
@@ -264,6 +254,27 @@ int main(int argc, char *argv[])
 
 	for(unsigned long t = 0; t < TOTAL_SAMPLES - 1; t++)
 	{
+		//=============//
+		// update lfos //
+		//=============//
+
+		for (unsigned char v = 0; v < TOTAL_VOICES - 1; v++) // all voices minus the last (sampler)
+		{
+			lfo_output[v] = wavetable_data[(unsigned char)((lfo_accumulator[v] += lfo_pitch[v]) >> 9) + (lfo_waveform[v] * 4)];
+			lfo_output[v] = (lfo_output[v] * lfo_amplitude[v]) >> 5;
+		}
+
+		// lfo swell / lfo delay
+		for (unsigned char v = 0; v < TOTAL_VOICES - 1; v++)
+		{
+			if (lfo_amplitude[v] < (lfo_intensity[v] + 1) && lfo_tick[v] == 0)
+			{
+				lfo_amplitude[v]++;
+				lfo_tick[v] = lfo_length[v] << 6;
+			}
+			else if (lfo_tick[v] > 0)
+				lfo_tick[v]--;
+		}
 
 		//==================//
 		// generate samples //
@@ -273,15 +284,15 @@ int main(int argc, char *argv[])
 
 		// oscillators
 		for (unsigned char v = 0; v < TOTAL_VOICES - 1; v++) // all voices minus the last (sampler)
-			output += osc_wavetable[v][(unsigned char)((osc_accumulator[v] += osc_pitch[v]) >> 9)];
+			output += ((wavetable_data[(unsigned char)((osc_accumulator[v] += (osc_pitch[v] + lfo_output[v])) >> 9) + (osc_sample[v] * 256)]) * osc_volume[v]) >> 5;
 
 		// sampler
 		int sample_pos = sample_start + (sample_accumulator++ / (mmml_octave[TOTAL_VOICES-1] + 2));
 
 		if (sample_pos > sample_end)
-			pause = 1;
+			sample_mute = 1;
 
-		if (pause == 0)
+		if (sample_mute == 0)
 			output += (float)wavetable[sample_pos] * (1.0 / ((MAX_VOLUME - 16) / (float)mmml_volume[TOTAL_VOICES-1]));
 
 		// mix it all together
@@ -307,13 +318,13 @@ int main(int argc, char *argv[])
 			// decay
 			if (env_type[v] == 0 && osc_volume[v] > -1 && env_tick[v] == 0)
 			{
-				update_wavetable(v,osc_sample[v],osc_volume[v]--,osc_gain[v]);
+				osc_volume[v]--;
 				env_tick[v] = env_length[v] << 6;
 			}
 			// swell
 			else if (env_type[v] == 1 && osc_volume[v] < (mmml_volume[v] + 1) && env_tick[v] == 0)
 			{
-				update_wavetable(v,osc_sample[v],osc_volume[v]++,osc_gain[v]);
+				osc_volume[v]++;
 				env_tick[v] = env_length[v] << 6;
 			}
 			else if (env_tick[v] > 0)
@@ -364,12 +375,96 @@ int main(int argc, char *argv[])
 	#endif
 }
 
+void configure_instrument(unsigned char voice, unsigned char instrument_id)
+{
+	
+	/* Here's where you can define your own custom instruments. Ideally this would be
+	 * part of the mmml language, but there's no point right now as this will generally
+	 * be compiled from source for each application.
+     *
+	 * Instrument variables available are:
+	 * - Waveform number
+	 * - Envelope type (decay or swell)
+	 * - Envelope length (in ticks)
+	 * - Sweep direction (rise to target, or fall to target)
+	 * - Sweep length (in ticks)
+	 * - Sweep target (in semitones)
+	 * - LFO frequency (in Hz)
+	 * - LFO intensity (target amplitude)
+	 * - LFO waveform (taken from the wavetable data)
+	 */
+	
+	switch(instrument_id)
+	{
+		// rising epiano
+		case 0:
+			osc_sample      [voice] = 8;
+
+			mmml_env_type   [voice] = 0;
+			mmml_env_length [voice] = 150;
+
+			swp_type        [voice] = 2;
+			swp_length      [voice] = 2;
+			swp_target      [voice] = 5;
+
+			lfo_pitch       [voice] = 13;
+			lfo_intensity   [voice] = 20;
+			lfo_waveform    [voice] = 0;
+			lfo_length      [voice] = 200;
+		break;
+
+		// epiano swell
+		case 1:
+			osc_sample      [voice] = 8;
+
+			mmml_env_type   [voice] = 1;
+			mmml_env_length [voice] = 150;
+
+			swp_type        [voice] = 0;
+			swp_length      [voice] = 0;
+			swp_target      [voice] = 0;
+
+			lfo_pitch       [voice] = 0;
+			lfo_intensity   [voice] = 0;
+			lfo_waveform    [voice] = 0;
+			lfo_length      [voice] = 0;
+		break;
+
+		// epiano swell drop
+		case 2:
+			osc_sample      [voice] = 8;
+
+			mmml_env_type   [voice] = 0;
+			mmml_env_length [voice] = 20;
+
+			swp_type        [voice] = 1;
+			swp_length      [voice] = 100;
+			swp_target      [voice] = 1;
+
+			lfo_pitch       [voice] = 40;
+			lfo_intensity   [voice] = 10;
+			lfo_waveform    [voice] = 0;
+			lfo_length      [voice] = 0;
+		break;
+	}
+}
+
 //=================//
 // music sequencer //
 //=================//
 
 void mmml()
 {
+	// main timer variables
+	static unsigned int tick_counter = 0;
+	static unsigned int tick_speed   = 0;
+
+	// temporary data storage variables
+	unsigned char  buffer1 = 0;
+	unsigned char  buffer2 = 0;
+	unsigned char  buffer3 = 0;
+	unsigned int   buffer4 = 0;
+
 	if(tick_counter-- == 0)
 	{
 		// Variable tempo, sets the fastest / smallest possible clock event.
@@ -490,13 +585,13 @@ void mmml()
 						// trigger the oscillators
 						if (v < TOTAL_VOICES - 1)
 						{
-							env_type[v]   = mmml_env_type[v];
-							mmml_note[v]  = buffer1;
+							env_type[v]  = mmml_env_type[v];
+							mmml_note[v] = buffer1;
 
 							// no sweep
 							if(swp_type[v] == 0)
 							{
-								osc_pitch[v]  = notes[mmml_note[v]+(mmml_octave[v]*12)];
+								osc_pitch[v] = notes[mmml_note[v]+(mmml_octave[v]*12)];
 							}
 							// sweep mode 1 sets a target pitch to fall to
 							else if(swp_type[v] == 1)
@@ -521,6 +616,9 @@ void mmml()
 								osc_target_pitch[v]  = notes[mmml_note[v]+(mmml_octave[v]*12)];
 							}
 
+							// reset the lfo
+							lfo_amplitude[v] = 0;
+
 							// compensate envelope length for level of volume
 							env_length[v] = mmml_env_length[v] * (MAX_VOLUME / mmml_volume[v]);
 
@@ -530,19 +628,17 @@ void mmml()
 								osc_volume[v] = 0;
 
 							env_tick[v] = env_length[v];
-
-							update_wavetable(v,osc_sample[v],osc_volume[v],osc_gain[v]);
 						}
 						// trigger the sampler (last voice is always sampler)
 						else if (v == TOTAL_VOICES - 1)
 						{
-							current_sample = (buffer1 - 1) % TOTAL_SAMPLER_SAMPLES;
+							sample_current = (buffer1 - 1) % TOTAL_SAMPLER_SAMPLES;
 
-							sample_start = sample_index[current_sample];
-							sample_end   = sample_index[current_sample + 1];
+							sample_start = sample_index[sample_current];
+							sample_end   = sample_index[sample_current + 1];
 
 							sample_accumulator = 0;
-							pause = 0;
+							sample_mute = 0;
 						}
 					}
 					//
@@ -560,7 +656,7 @@ void mmml()
 						env_length[v] = 1;
 					}
 					else if (v == TOTAL_VOICES-1)
-						pause = 1;
+						sample_mute = 1;
 
 					// clear tie flag here too
 					osc_tie_flag[v] = 0;
@@ -581,74 +677,5 @@ void mmml()
 			else
 				mmml_length[v]--;
 		}
-	}
-}
-
-void configure_instrument(unsigned char voice, unsigned char instrument_id)
-{
-	
-	/* Here's where you can define your own custom instruments. Ideally this would be
-	 * part of the mmml language, but there's no point right now as this will generally
-	 * be compiled from source for each application.
-     *
-	 * Instrument variables available are:
-	 * - Waveform
-	 * - Envelope type (decay or swell)
-	 * - Envelope length (in ticks)
-	 * - Sweep direction (rise to target, or fall to target)
-	 * - Sweep length (in ticks)
-	 * - Sweep target (in semitones)
-	 */
-	
-	switch(instrument_id)
-	{
-		// rising epiano
-		case 0:
-			osc_sample      [voice] = 8;
-
-			mmml_env_type   [voice] = 0;
-			mmml_env_length [voice] = 150;
-			swp_type        [voice] = 2;
-			swp_length      [voice] = 2;
-			swp_target      [voice] = 5;
-		break;
-
-		// epiano swell
-		case 1:
-			osc_sample      [voice] = 8;
-
-			mmml_env_type   [voice] = 1;
-			mmml_env_length [voice] = 150;
-			swp_type        [voice] = 0;
-			swp_target      [voice] = 0;
-		break;
-
-		// epiano swell drop
-		case 2:
-			osc_sample      [voice] = 8;
-
-			mmml_env_type   [voice] = 0;
-			mmml_env_length [voice] = 20;
-			swp_type        [voice] = 1;
-			swp_length      [voice] = 100;
-			swp_target      [voice] = 1;
-		break;
-	}
-}
-
-void update_wavetable(unsigned char voice, unsigned char sample, unsigned char volume, unsigned char gain)
-{
-	int output;
-
-	for (int i = 0; i < WAVETABLE_SIZE; i++)
-	{
-		// read sample
-		output = wavetable_data[(i + (sample * WAVETABLE_SIZE))];
-		// apply gain (for distortion)
-		output = (int)output * gain;
-		// apply volume
-		output = (output * volume) >> 5;
-		// write to table
-		osc_wavetable[voice][i] = output;
 	}
 }
