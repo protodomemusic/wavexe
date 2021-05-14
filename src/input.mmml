@@ -10,57 +10,79 @@
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL A %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o2 i0
+@ r4
 
-[2 i0 v6 c1&c1 i1 v6 g1&g2. i2 g4 ]
+[2 
+	K2 i0 o1 c1&c1
+	K0 i1 o1 c1&c1
+	K3 i2 o1 c1&c1
+	K2 i6 o1 g1&g1
+]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL B %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o3
+@ r4
 
-[2 i0 v6 g1&g1 i1 v6 f1&f2. i2 f4 ]
+[2
+	v7 K2 i0 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
+	v7 K0 i1 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
+	v7 K3 i2 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
+	v7 K2 i6 o3 a1 v5 c8 v4 fg v5 >c v4 c32d16.&d4.
+]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL C %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o4
+@ r4
 
-[2 i0 v6 e1&e1 i1 v6 a1&a2. i2 a4 ]
+[2
+	K2 i0 o4 e1&e1
+	K0 i1 o4 e1&e1
+	K3 i2 o4 e1&e1
+	K2 i6 o4 d1&d1
+]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL D %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o4
+@ r4
 
-[2 i0 v6 d1&d1 i1 v6 c1&c2. i2 c4 ]
+[2
+	K2 i0 o4 d1&d1
+	K0 i1 o4 d1&d1
+	K3 i2 o4 d1&d1
+	K2 i6 o4 f1&f1
+]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL E %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o4
+@ r4
 
-[2 i0 v6 a1&a1 i1 v6 f1&f2. i2 f4 ]
+[2
+	K2 i0 o4 b1&b1
+	K0 i1 o4 b1&b1
+	K3 i2 o4 b1&b1
+	K2 i6 o5 c1&c1
+]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL F %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o4
-
-[2 i0 v6 b1&b1 i1 v6 d1&d2. i2 d4 ]
-
-%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL G %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
-
-@ r4 o5
-
-[2 i0 v5 f#1&f#1 i0 v5 g1&g2. a4 ]
-
-%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL H %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
-% remember, last channel is always the sampler
-% you can pitch the sampler using the octave commands
 @ r4 t60
 
-[2 [3 m1 v3 f#16 v8 d128&r32&r64. v4 c#16 v6 c16 v8 o5 d16 f#16 o4 v7 g#16 v7 a16 ]
-m1 v3 f#16 v5 o4 g16 v6 o2 g16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16 ]
+[2 
+	[2
+		m1 m2 m1 m3
+		m1 m2 m1 v3 f#16 v5 o4 g16 v6 o2 g16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16
+	]
+]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%   MACRO   %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
 % m1 - main kit loop
 @ o3 v8 c16 v2 f#16 v4 c#16 v6 c16 v8 o4 d16 o3 f#16 v3 c#16 v8 d128&r32&r64.
+
+% m2 - kit fill #1
+@ o3 v3 f#16 v8 d128&r32&r64. v4 c#16 v6 c16 v8 o5 d16 f#16 o4 v7 c#16 v5 e16
+
+% m3 - kit fill #2
+@ o3 v3 f#16 v8 d128&r32&r64. v4 c#16 v6 c16 v8 o5 d16 o3 v6 a16 o4 a16 v7 o5 g#16
 
 %===================================================================%
