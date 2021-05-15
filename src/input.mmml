@@ -11,68 +11,52 @@
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL A %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
 @ r4
-
-[2 
-	K2 i0 o1 c1&c1
-	K0 i1 o1 c1&c1
-	K3 i2 o1 c1&c1
-	K2 i6 o1 g1&g1
-]
+[2 i11 v6 o5 c1&c1 v8
+   K0 i4 o1 c1 i8 o6 v5 [2 c16<g>ed v4 ] v2 [2 c16<g>ed v1 ] v8
+   K3 i4 o1 c1 r1
+   K2 i4 o1 g1 i13 v6 o6 c1 ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL B %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
 @ r4
-
-[2
-	v7 K2 i0 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
-	v7 K0 i1 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
-	v7 K3 i2 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
-	v7 K2 i6 o3 a1 v5 c8 v4 fg v5 >c v4 c32d16.&d4.
-]
+[2 v7 K2 i0 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
+   v7 K0 i1 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
+   v7 K3 i2 o3 g1 v4 c8 v3 eg v4 b> v3 c32d16.&d4.
+   v7 K2 i1 o3 a1 v5 c8 v4 fg v5 >c v4 c32d16.&d4. ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL C %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4
+@ r4 v7
 
-[2
-	K2 i0 o4 e1&e1
-	K0 i1 o4 e1&e1
-	K3 i2 o4 e1&e1
-	K2 i6 o4 d1&d1
-]
+[2 K2 i0 o4 e1&e1
+   K0 i1 o4 e1 i14 v5 o6 e1
+   v7 K3 i2 o4 e1&e1
+   K2 i1 o4 d1&d1 ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL D %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
 @ r4
 
-[2
-	K2 i0 o4 d1&d1
-	K0 i1 o4 d1&d1
-	K3 i2 o4 d1&d1
-	K2 i6 o4 f1&f1
-]
+[2 v8 K2 i4 o1 c1 r1
+   v7 K0 i1 o4 d1&d1
+   K3 i12 v6 o5 d1&d1
+   v7 K2 i1 o4 f1&f1 ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL E %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4
+@ r4 v7
 
-[2
-	K2 i0 o4 b1&b1
-	K0 i1 o4 b1&b1
-	K3 i2 o4 b1&b1
-	K2 i6 o5 c1&c1
-]
+[2 K2 i0 o4 b1&b1
+   K0 i1 o4 b1&b1
+   K3 i2 o4 b1&b1
+   K2 i1 o5 c1&c1 ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL F %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 t60
+@ r4 t55
 
-[2 
-	[2
-		m1 m2 m1 m3
-		m1 m2 m1 v3 f#16 v5 o4 g16 v6 o2 g16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16
-	]
-]
+[4 m1 m2 m1 m3
+   m1 m2 m1 v3 f#16 v5 o4 g16 v6 o2 g16 v6 c16 v8 o1 f32 f32 o1 f16 o2 v7 f16 o3 v7 f16 ]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%   MACRO   %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
