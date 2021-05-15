@@ -32,7 +32,6 @@
 *                - Stereo.
 *                - Link LFO to different parameters?
 *                - Needs a limiter.
-*                - Instrument band doesn't need to be ints.
 *
 *                BUGS:
 *                - Decays never silence.
@@ -237,30 +236,30 @@ int reverb(unsigned long buffer_pointer)
 
 unsigned int instrument_bank [TOTAL_INSTRUMENTS][INSTRUMENT_VARIABLES] =
 {
-//--------------------------------------------------------------//
+//-----------------------------------------------------------------//
 //   waveform     /**/  volume  /**/  sweep   /**/  lfo (vibrato)  //
-//--------------------------------------------------------------//
+//-----------------------------------------------------------------//
 // 0: synth clav
-	{  4,3,20,    /**/  0,120,  /**/  2,1,1,  /**/  12,10,0,350  },
+	{  4,3,10,    /**/  0,120,  /**/  2,1,1,  /**/  12,10,0,35 },
 // 1: rhodes
-	{  9,8,40,    /**/  0,100,  /**/  0,0,0,  /**/  10,1,0,200   },
+	{  9,8,20,    /**/  0,100,  /**/  0,0,0,  /**/  10,1,0,20  },
 // 2: soft square
-	{  7,6,200,   /**/  0,120,  /**/  0,0,0,  /**/  11,1,2,560   },
+	{  7,6,100,   /**/  0,120,  /**/  0,0,0,  /**/  11,1,2,56  },
 // 3: glass
-	{  11,0,20,   /**/  0,80,   /**/  0,0,0,  /**/  12,1,2,560   },
+	{  11,0,10,   /**/  0,80,   /**/  0,0,0,  /**/  12,1,2,56  },
 // 4: plucked string
-	{  12,8,20,   /**/  0,200,  /**/  0,0,0,  /**/  0,0,0,0      },
+	{  12,8,10,   /**/  0,200,  /**/  0,0,0,  /**/  0,0,0,0    },
 // 5: thin rectangle
-	{  5,4,200,   /**/  0,100,  /**/  2,4,1,  /**/  14,1,0,1000  },
+	{  5,4,100,   /**/  0,100,  /**/  2,4,1,  /**/  14,1,0,100 },
 // 6: soft epiano
-	{  8,0,400,   /**/  0,200,  /**/  0,0,0,  /**/  14,1,0,1000  },
+	{  8,0,200,   /**/  0,200,  /**/  0,0,0,  /**/  14,1,2,100 },
 // 7: bassoon-ish
-	{  12,10,200, /**/  0,200,  /**/  0,0,0,  /**/  0,0,0,0      },
+	{  12,10,100, /**/  0,200,  /**/  0,0,0,  /**/  0,0,0,0    },
 // 8: popcorn
-	{  2,0,5,     /**/  0,30,   /**/  2,1,1,  /**/  0,0,0,0      },
+	{  2,0,3,     /**/  0,30,   /**/  2,1,1,  /**/  0,0,0,0    },
 // 9: harpsichord piano hybrid
-	{  10,3,20,   /**/  0,30,   /**/  0,0,0,  /**/  0,0,0,0      },
-//-------------------------------------------------------------//
+	{  10,3,10,   /**/  0,30,   /**/  0,0,0,  /**/  0,0,0,0    },
+//-----------------------------------------------------------------//
 };
 
 void configure_instrument(unsigned char voice, unsigned char instrument_id)
@@ -268,7 +267,7 @@ void configure_instrument(unsigned char voice, unsigned char instrument_id)
 	// waveform
 	osc_sample_1   [voice] = instrument_bank[instrument_id][0];
 	osc_sample_2   [voice] = instrument_bank[instrument_id][1];
-	env_wav_length [voice] = instrument_bank[instrument_id][2];
+	env_wav_length [voice] = instrument_bank[instrument_id][2] * 2; // scale for char to int
 	// volume
 	env_vol_type   [voice] = instrument_bank[instrument_id][3];
 	env_vol_length [voice] = instrument_bank[instrument_id][4];
@@ -280,7 +279,7 @@ void configure_instrument(unsigned char voice, unsigned char instrument_id)
 	lfo_pitch      [voice] = instrument_bank[instrument_id][8];
 	lfo_intensity  [voice] = instrument_bank[instrument_id][9];
 	lfo_waveform   [voice] = instrument_bank[instrument_id][10];
-	lfo_length     [voice] = instrument_bank[instrument_id][11];
+	lfo_length     [voice] = instrument_bank[instrument_id][11] * 10; // scale for char to int
 }
 
 void update_wavetable(unsigned char voice, char sample_1, char sample_2, unsigned char volume, unsigned char mix_percentage)
