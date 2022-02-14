@@ -1,0 +1,53 @@
+%===================================================================%
+% TITLE      : wavexe test
+% COMPOSER   : Blake 'PROTODOME' Troise
+% PROGRAMMER : " " "
+% DATE       : 14/02/22
+% NOTES      : Quick file to test/document wavexe features.
+%              Build me using the latest version of this:
+%              github.com/protodomemusic/mmml/tree/master/compiler
+%===================================================================%
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL A %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o2 i17
+v8 c2c v7 c2c v6 c2c v5 c2c v4 c2c v3 c2c v2 c2c v1 c2c
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL B %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o3 i17
+v8 e2e v7 e2e v6 e2e v5 e2e v4 e2e v3 e2e v2 e2e v1 e2e
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL C %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o3 i17
+v8 d2d v7 d2d v6 d2d v5 d2d v4 d2d v3 d2d v2 d2d v1 d2d
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL D %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o3 i17
+v8 g2 g2
+v7 g2 g4&g16 v4 o4 i8 bge o3 i17
+v6 g2 g2
+v5 g2 g4&g16 v2 o4 i8 gec o3 i17
+v4 g2 g2
+v3 g2 g4&g16 v1 o4 i8 bge o3 i17
+v2 g2 g2
+v1 g2 g4&g16 v1 o4 i8 gec o3 i17
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL E %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ r4 o2 i17
+v8 b2b v7 b2b v6 b2b v5 b2b v4 b2b v3 b2b v2 b2b v1 b2b 
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL F %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+@ t52 r4 o3
+v8 m1 v7 m1 v6 m1 v5 m1 v4 m1 v3 m1 v2 m1 v1 m1
+
+%-~-~-~-~-~-~-~-~-~-~-~-~-~-%   MACRO   %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
+
+% m1: amen
+@ o3 c16 f+16 c16 f+16 o4 d16 o3 f+16 f+16 o4 d128d64.&d32 o3 f+16 o4 d16 o3 c16 f+16 o4 d16 o3 f+16 f+128f+64.&f+32 f+16
+
+%===================================================================%
