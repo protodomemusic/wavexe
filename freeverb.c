@@ -22,13 +22,8 @@
 #define SCALEROOM      0.28
 #define STEREOSPREAD   23
 #define OFFSETROOM     0.7
-#define INITIALROOM    0.5
-#define INITIALDAMP    0.5
-#define INITIALWET     (1.0 / SCALEWET)
-#define INITIALDRY     1.0
-#define INITIALWIDTH   1.0
-#define INITIALMODE    0.0
-#define INITIALSR      44100.0
+
+#define RV_SAMPLE_RATE 44100.0
 #define FREEZEMODE     0.5
 #define TOTAL_CHANNELS 2
 
@@ -119,7 +114,7 @@ static void reverb_update()
 	}
 }
 
-void reverb_process(float *buf, int n)
+void reverb_process(float *input_buffer, int input_length, float v_width, float v_dry, float v_wet, float v_damp, float v_room)
 {
 	/*===== INITIALISE PARAMETERS =====*/
 
@@ -134,7 +129,7 @@ void reverb_process(float *buf, int n)
 	const int combs[]     = { 1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617 };
 	const int allpasses[] = { 556, 441, 341, 225 };
 
-	double multiplier = INITIALSR / INITIALSR;
+	double multiplier = RV_SAMPLE_RATE / RV_SAMPLE_RATE;
 
 	// init comb buffers
 	for (int i = 0; i < NUMCOMBS; i++)
@@ -152,21 +147,21 @@ void reverb_process(float *buf, int n)
 
 	//------- initialise parameters -------//
 
-	verb_wet      = INITIALWET  * SCALEWET;
-	verb_roomsize = INITIALROOM * SCALEROOM + OFFSETROOM;
-	verb_dry      = INITIALDRY  * SCALEDRY;
-	verb_damp     = INITIALDAMP * SCALEDAMP;
-	verb_width    = INITIALWIDTH;
+	verb_wet      = v_wet  * SCALEWET;
+	verb_roomsize = v_room * SCALEROOM + OFFSETROOM;
+	verb_dry      = v_dry  * SCALEDRY;
+	verb_damp     = v_damp * SCALEDAMP;
+	verb_width    = v_width;
 
 	reverb_update();
 
 	/*===== PROCESS REVERB =====*/
 
-	for (int i = 0; i < n; i += 2)
+	for (int i = 0; i < input_length; i += 2)
 	{
 		float outl  = 0;
 		float outr  = 0;
-		float input = (buf[i] + buf[i + 1]) * verb_gain;
+		float input = (input_buffer[i] + input_buffer[i + 1]) * verb_gain;
 
 		/* accumulate comb filters in parallel */
 		for (int i = 0; i < NUMCOMBS; i++)
@@ -183,7 +178,10 @@ void reverb_process(float *buf, int n)
 		}
 
 		/* replace buffer with output */
-		buf[i  ] = outl * verb_wet1 + outr * verb_wet2 + buf[i  ] * verb_dry;
-		buf[i+1] = outr * verb_wet1 + outl * verb_wet2 + buf[i+1] * verb_dry;
+		input_buffer[i  ] = outl * verb_wet1 + outr * verb_wet2 + input_buffer[i  ] * verb_dry;
+		input_buffer[i+1] = outr * verb_wet1 + outl * verb_wet2 + input_buffer[i+1] * verb_dry;
 	}
+
+	memset(comb_buf, 0, sizeof comb_buf);
+	memset(allpass_buf, 0, sizeof allpass_buf);
 }

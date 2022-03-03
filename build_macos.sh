@@ -5,7 +5,7 @@
 # used in conjunction with the mmml compiler.
 
 rm wavexe
-./mmml-compiler -f input.mmml -t wavexe -c 6
+./mmml-compiler -f input.mmml -t wavexe -c 8
 gcc wavexe.c -o wavexe
 
 #if you want tiny executables, uncomment below (and install upx)
