@@ -33,14 +33,6 @@
 *                  between pitches.
 *                - Number of voices is broken for some numbers.
 *                  Selecting only 6 or 8 works right now.
-*                - Weird thing when compiled for Linux for
-*                  Chrome OS where all mmml data pointers are
-*                  initialised incorrectly if the
-*                  configure_instrument() and
-*                  update_wavetable() functions are called
-*                  afterwards.
-*                - Oscillators are lower in pitch when compiled
-*                  in Linux for Chrome OS.
 *
 *  AUTHOR:       Blake 'PROTODOME' Troise
 *  PLATFORM:     Command Line Application (MacOS)
@@ -60,7 +52,7 @@
 #include "wavexe-mmml-data.h"
 #include "wavexe-sample-data.h"
 
-#define PLAY_TIME        40     // duration of recording in seconds
+#define PLAY_TIME        46     // duration of recording in seconds
 #define SAMPLE_RATE      44100  // cd quality audio
 #define BITS_PER_SAMPLE  16     // 16-bit wave files require 16 bits per sample
 #define AUDIO_FORMAT     1      // for PCM data
@@ -263,18 +255,18 @@ uint8_t instrument_bank [TOTAL_INSTRUMENTS][INSTRUMENT_PARAMETERS] =
 
 float reverb_bank [TOTAL_REVERB_PRESETS][TOTAL_REVERB_PARAMETERS] =
 {
-//-----------------------------------------------------//
-//  width  /**/  dry  /**/  wet  /**/  damp  /**/ room //
-//-----------------------------------------------------//
+//-------------------------------------------------------//
+//  width  /**/  dry  /**/  wet  /**/  damp  /**/  room  //
+//-------------------------------------------------------//
 // 0: no reverb
-	{ 0.0, /**/  1.0, /**/  0.0, /**/  0.0,  /**/  0.0 },
+	{ 0.0, /**/  1.0, /**/  0.0, /**/   0.0, /**/   0.0  },
 // 1: a dusting
-	{ 2.5, /**/  1.0, /**/ 0.05, /**/0.005,  /**/0.005 },
+	{ 2.5, /**/  1.0, /**/ 0.05, /**/ 0.005, /**/ 0.005  },
 // 2: a little space
-	{ 2.2, /**/  1.0, /**/  0.1, /**/  0.5,  /**/  0.5 },
+	{ 2.2, /**/  1.0, /**/  0.1, /**/   0.5, /**/   0.5  },
 // 3: roomy
-	{ 3.0, /**/  1.0, /**/  0.2, /**/  0.5,  /**/  0.8 },
-//-----------------------------------------------------//
+	{ 3.0, /**/  1.0, /**/  0.2, /**/   0.5, /**/   0.8  },
+//------------------------------------------------------//
 };
 
 #define TOTAL_DELAY_PRESETS     4
@@ -282,18 +274,18 @@ float reverb_bank [TOTAL_REVERB_PRESETS][TOTAL_REVERB_PARAMETERS] =
 
 float delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
 {
-//------------------------------------//
-//  offset   /**/ volume /**/  spread //
-//------------------------------------//
+//--------------------------------------------------//
+//   offset  /**/  volume  /**/  spread  /**/  dir  //
+//--------------------------------------------------//
 // 0: no delay
-	{     1, /**/  0.0,  /**/   0.0, },
+	{     1, /**/    0.0,  /**/   0.0,   /**/    0, },
 // 1: super subtle delay
-	{  9000, /**/ 0.05,  /**/   0.4, },
+	{  9000, /**/   0.05,  /**/   0.4,   /**/    1, },
 // 2: classic stereo echo
-	{ 20000, /**/  0.2,  /**/   0.4, },
+	{ 20000, /**/    0.2,  /**/   0.4,   /**/    0, },
 // 3: huge delay
-	{ 20000, /**/  0.7,  /**/   0.2, },
-//------------------------------------//
+	{ 20000, /**/    0.7,  /**/   0.2,   /**/    1, },
+//--------------------------------------------------//
 };
 
 #define TOTAL_FX 2
@@ -310,7 +302,7 @@ uint8_t channel_fx [TOTAL_VOICES][TOTAL_FX] =
 // channel 2
 	{  3,  /**/  2 },
 // channel 3
-	{  3,  /**/  2 },
+	{  3,  /**/  3 },
 // channel 4
 	{  1,  /**/  0 },
 // channel 5
@@ -383,7 +375,7 @@ int main()
 
 	printf("\nLet's build a wave file.\n\n");
 	printf("Total samples:  %u\n",   TOTAL_SAMPLES);
-	printf("Final filesize: %fMB\n\n", TOTAL_FILESIZE);
+	printf("Final filesize: %.2fMB\n\n", TOTAL_FILESIZE);
 
 	// define & open the output file
 	FILE* output_wave_file;
@@ -454,12 +446,16 @@ int main()
 		// mmml default values
 		mmml_volume    [v] = 0.5;
 		mmml_octave    [v] = 2;
-		mmml_transpose [v] = 0;
-		osc_tie_flag   [v] = 0;
 
 		update_wavetable(v, osc_sample_1[v], osc_sample_2[v], osc_volume[v], osc_mix[v]);
 		configure_instrument(v, 0);
+	}
 
+	// if the data pointers are configured in the loop above, it sets all but
+	// the last element in the array to zero once the loop resets. this behaviour
+	// was only seen in 'Linux for ChromeOS', but better to play it safe honestly
+	for (uint8_t v = 0; v < TOTAL_VOICES; v++)
+	{
 		data_pointer [v] = (uint8_t)mmml_data[v * 2] << 8;
 		data_pointer [v] = data_pointer[v] | (uint8_t)mmml_data[(v*2)+1];
 	}
@@ -620,7 +616,7 @@ int main()
 
 		// process delay
 		delay_process(channel_buffer_float,TOTAL_SAMPLES,(uint32_t)delay_bank[channel_fx[v][1]][0],
-			delay_bank[channel_fx[v][1]][1],delay_bank[channel_fx[v][1]][2]);
+			delay_bank[channel_fx[v][1]][1],delay_bank[channel_fx[v][1]][2],(uint8_t)delay_bank[channel_fx[v][1]][3]);
 
 		printf("Processing reverb...\n\n");
 
@@ -652,7 +648,7 @@ int main()
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 
-	printf("Took %f seconds to complete.\n", time_spent);
+	printf("Took %.2f seconds to complete.\n", time_spent);
 }
 
 //=================//

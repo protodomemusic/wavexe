@@ -1,4 +1,4 @@
-void delay_process(float *input_buffer, uint32_t input_length, uint32_t delay_time, float delay_volume, float delay_spread)
+void delay_process(float *input_buffer, uint32_t input_length, uint32_t delay_time, float delay_volume, float delay_spread, uint8_t delay_direction)
 {
 	float *delay_buffer = (float*)malloc(delay_time * 2 * sizeof(float));
 
@@ -12,7 +12,7 @@ void delay_process(float *input_buffer, uint32_t input_length, uint32_t delay_ti
 	uint8_t declicker_l_flag = 0;
 	uint8_t declicker_r_flag = 0;
 
-	uint8_t  pingpong_flag    = 0;
+	uint8_t  pingpong_flag    = delay_direction;
 	uint32_t pingpong_counter = 0;
 
 	for (int i = 0; i < input_length; i += 2) // stereo file, jump 2 samples
