@@ -40,11 +40,11 @@ o3 i17 K4
 v8 g2 g2
 v7 g2 g4&g16 o4 i8 bge o3 i17
 v6 g2 g2
-v5 g2 g4&g16 o4 i8 gec o3 i17
+v5 g2 g4&g16 o4 i3 gec o3 i17
 v4 g2 g2
 v3 g2 g4&g16 o4 i8 bge o3 i17
 v2 g2 g2
-v1 g2 g4&g16 o4 i8 gec o3 i17
+v1 g2 g4&g16 o4 i3 gec o3 i17
 r1r
 
 [255 r1] % shh

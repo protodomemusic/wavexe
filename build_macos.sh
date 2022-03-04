@@ -6,7 +6,7 @@
 
 rm wavexe
 ./mmml-compiler -f input.mmml -t wavexe -c 8
-gcc wavexe.c -o wavexe
+gcc -O3 wavexe.c -o wavexe
 
 #if you want tiny executables, uncomment below (and install upx)
 #gcc wavexe.c -o wavexe-big

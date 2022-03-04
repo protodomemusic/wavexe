@@ -1,3 +1,7 @@
+//================//
+//  simple delay  //
+//================//
+
 void delay_process(float *input_buffer, uint32_t input_length, uint32_t delay_time, float delay_volume, float delay_spread, uint8_t delay_direction)
 {
 	float *delay_buffer = (float*)malloc(delay_time * 2 * sizeof(float));

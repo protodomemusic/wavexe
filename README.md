@@ -5,6 +5,6 @@ Really simple little program that musically messes with wavecycles and bakes the
 
 You can probably work out how to build from the included script but, once you've built the mmml compiler from source, you'll need to do the following with a valid mmml file (example included in repo):
 
-`./mmml-compiler -f input.mmml -t wavexe -c 6` then `gcc wavexe.c -o wavexe` and `./wavexe` to create the wave file.
+`./mmml-compiler -f input.mmml -t wavexe -c 8` then `gcc wavexe.c -o wavexe` and `./wavexe` to create the wave file.
 
 (Also, keep an eye on the bugs in the header of `wavexe.c`, there's a few.)

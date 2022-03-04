@@ -15,6 +15,10 @@
 *                Safayet Ahmed!
 *
 *                TO DO:
+*                - DC offset bug (see bugs).
+*                - Stereo drums!
+*                - Optimise to make processing a little faster.
+*                - Panning in MMML.
 *                - Migrate to -1.0 - 1.0 signal levels.
 *                - MIDI -> MMML conversion.
 *                - Sort out the weird mixing/balancing to work
@@ -23,12 +27,16 @@
 *                - Make volumes ('v' commands) more dynamic.
 *                - Portamento.
 *                - Link LFO to different parameters?
-*                - Needs a limiter, or at least normalisation.
+*                - A limiter would be cool.
 *                - Dither?
 *                - Allow definition of custom instruments in
 *                  MMML.
+*                - Control of FX in MMML.
 *
 *                BUGS:
+*                - Find and eliminate annoying DC-offset. It's
+*                  not the normaliser/FX, which narrows it down
+*                  a bit.
 *                - Weird 'notch' in waveform when switching
 *                  between pitches.
 *                - Number of voices is broken for some numbers.
@@ -46,13 +54,14 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <time.h>
+#include <math.h>
 
 #include "freeverb.c"
 #include "simple_delay.c"
 #include "wavexe-mmml-data.h"
 #include "wavexe-sample-data.h"
 
-#define PLAY_TIME        46     // duration of recording in seconds
+#define PLAY_TIME        22     // duration of recording in seconds
 #define SAMPLE_RATE      44100  // cd quality audio
 #define BITS_PER_SAMPLE  16     // 16-bit wave files require 16 bits per sample
 #define AUDIO_FORMAT     1      // for PCM data
@@ -60,7 +69,7 @@
 #define SUBCHUNK_1_SIZE  16     // dunno, what's this?
 #define BYTE_RATE        SAMPLE_RATE * TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
 #define BLOCK_ALIGN      TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
-#define TOTAL_SAMPLES    PLAY_TIME * SAMPLE_RATE
+#define TOTAL_SAMPLES    (PLAY_TIME * 2) * SAMPLE_RATE
 #define SUBCHUNK_2_SIZE  TOTAL_SAMPLES * TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
 #define CHUNK_SIZE       4 + (8 + SUBCHUNK_1_SIZE) + (8 + SUBCHUNK_2_SIZE)
 
@@ -108,6 +117,11 @@ const uint16_t notes[TOTAL_NOTES] =
 	4186,4435,4699,4978,5274,5588,5920,6272,6645,7040,7459,7902,
 };
 
+// ---- behold the mighty tower of global variables
+// |
+// |
+// V
+
 // misc variables
 uint8_t  mod_counter = MOD_SPEED;
 
@@ -119,10 +133,14 @@ uint16_t osc_tie_flag      [TOTAL_VOICES - 1];
 
 // wavetable variables
 float    osc_volume        [TOTAL_VOICES - 1];
+float    osc_stereo_mix    [TOTAL_VOICES - 1];
 uint8_t  osc_mix           [TOTAL_VOICES - 1];
-uint8_t  osc_sample_1      [TOTAL_VOICES - 1];
-uint8_t  osc_sample_2      [TOTAL_VOICES - 1];
-int16_t  osc_wavetable     [TOTAL_VOICES - 1][WAVETABLE_SIZE];
+uint8_t  osc_phase         [TOTAL_VOICES - 1];
+uint8_t  osc_sample_1_l    [TOTAL_VOICES - 1];
+uint8_t  osc_sample_1_r    [TOTAL_VOICES - 1];
+uint8_t  osc_sample_2_l    [TOTAL_VOICES - 1];
+uint8_t  osc_sample_2_r    [TOTAL_VOICES - 1];
+int16_t  osc_wavetable     [2][TOTAL_VOICES - 1][WAVETABLE_SIZE];
 uint8_t  osc_instrument    [TOTAL_VOICES - 1];
 
 // lfo variables
@@ -186,8 +204,10 @@ float map(float x, float in_min, float in_max, float out_min, float out_max)
  * be compiled from source for each application.
  *
  * Instrument variables available are:
- * - Waveform number #1 (starting waveform)
- * - Waveform number #2 (destination waveform)
+ * - Waveform number L #1 (starting waveform)
+ * - Waveform number R #1 (starting waveform)
+ * - Waveform number L #2 (destination waveform)
+ * - Waveform number R #2 (destination waveform)
  * - Waveform blend duration (how long it takes to fade between the wavecycles)
  * - Envelope type (decay or swell)
  * - Envelope length (in ticks)
@@ -201,53 +221,57 @@ float map(float x, float in_min, float in_max, float out_min, float out_max)
  * - LFO intensity (target amplitude)
  * - LFO waveform (taken from the wavetable data)
  * - LFO length (how long it takes to reach full amplitude)
+ * - Percentage stereo separation/balance (how mixed are the two L/R samples)
+ *      0: L/R <---> 50: Mono <---> 100: R/L
  */
 
-#define TOTAL_INSTRUMENTS     18
-#define INSTRUMENT_PARAMETERS 12
+#define TOTAL_INSTRUMENTS     19
+#define INSTRUMENT_PARAMETERS 16
 
 uint8_t instrument_bank [TOTAL_INSTRUMENTS][INSTRUMENT_PARAMETERS] =
 {
-//------------------------------------------------------------------//
-//   waveform     /**/  volume  /**/  sweep    /**/  lfo (vibrato)  //
-//------------------------------------------------------------------//
+//---------------------------------------------------------------------------------------//
+//        waveform        /**/  volume  /**/  sweep    /**/  lfo (vibrato)  /**/ stereo  //
+//---------------------------------------------------------------------------------------//
 // 0: synth clav
-	{  4,3,10,    /**/  0,120,  /**/  2,1,1,   /**/  0,0,0,0      },
+	{  4,5, 3,3,      10, /**/  0,120,  /**/  2,1,1,   /**/  0,0,0,0,       /**/  40,20  },
 // 1: rhodes
-	{  9,8,20,    /**/  0,120,  /**/  0,0,0,   /**/  0,0,0,0      },
+	{  10,9, 8,8,     20, /**/  0,120,  /**/  0,0,0,   /**/  0,0,0,0,       /**/  35,0   },
 // 2: soft square
-	{  7,6,100,   /**/  0,120,  /**/  0,0,0,   /**/  11,1,2,120   },
+	{  7,7, 6,3,     100, /**/  0,120,  /**/  0,0,0,   /**/  11,1,2,120,    /**/  38,20  },
 // 3: glass
-	{  11,0,10,   /**/  0,80,   /**/  0,0,0,   /**/  12,1,2,56    },
+	{  10,11, 0,0,    10, /**/  0,80,   /**/  0,0,0,   /**/  12,1,2,56,     /**/  40,0   },
 // 4: plucked string
-	{  12,8,10,   /**/  0,200,  /**/  0,0,0,   /**/  0,0,0,0      },
+	{  12,12, 8,8,    10, /**/  0,200,  /**/  0,0,0,   /**/  0,0,0,0,       /**/  40,30  },
 // 5: thin rectangle
-	{  5,4,100,   /**/  0,100,  /**/  2,4,1,   /**/  14,1,0,100   },
+	{  5,5, 4,4,     100, /**/  0,100,  /**/  2,4,1,   /**/  14,1,0,100,    /**/  50,0   },
 // 6: soft epiano
-	{  8,0,200,   /**/  0,200,  /**/  0,0,0,   /**/  14,1,2,100   },
+	{  8,8, 0,0,     200, /**/  0,200,  /**/  0,0,0,   /**/  14,1,2,100,    /**/  50,0   },
 // 7: bassoon-ish
-	{  12,10,100, /**/  0,200,  /**/  0,0,0,   /**/  0,0,0,0      },
+	{  12,12, 10,10, 100, /**/  0,200,  /**/  0,0,0,   /**/  0,0,0,0,       /**/  50,0   },
 // 8: popcorn
-	{  2,0,3,     /**/  0,40,   /**/  2,1,1,   /**/  0,0,0,0      },
-// 9: harpsichord piano hybrid
-	{  10,3,10,   /**/  0,50,   /**/  0,0,0,   /**/  0,0,0,0      },
+	{  2,1, 0,0,       3, /**/  0,40,   /**/  2,1,1,   /**/  0,0,0,0,       /**/  35,0   },
+// 9: hyper harpsichord
+	{  10,10, 6,3,    10, /**/  0,50,   /**/  0,0,0,   /**/  14,1,0,200,    /**/  20,0   },
 //10: tom/kick
-	{  12,0,1,    /**/  0,4,    /**/  3,2,24,  /**/  0,0,0,0      },
+	{  12,10, 0,0,     1, /**/  0,4,    /**/  3,2,24,  /**/  0,0,0,0,       /**/  40,0   },
 //11: drop sfx #1 - sounds good at o5
-	{  12,10,1,   /**/  0,80,   /**/  3,15,72, /**/  60,126,12,0  },
+	{  12,6, 11,10,    1, /**/  0,80,   /**/  3,15,72, /**/  60,126,12,0,   /**/  43,0   },
 //12: drop sfx #2 - sounds good at o5
-	{  3,8,200,   /**/  0,50,   /**/  3,10,72, /**/  200,100,12,0 },
+	{  3,6, 9,8,     200, /**/  0,50,   /**/  3,10,72, /**/  200,100,12,0,  /**/  62,0   },
 //13: rise sfx #1 - sounds good at o5 or o6
-	{  10,11,10,  /**/  1,100,  /**/  4,20,48, /**/  200,100,12,0 },
+	{  10,9, 11,11,   10, /**/  1,100,  /**/  4,20,48, /**/  200,100,12,0,  /**/  1,0    },
 //14: rise sfx #2 - sounds good at o6
-	{  3,9,10,    /**/  1,100,  /**/  4,10,48, /**/  100,100,5,0  },
+	{  3,6, 8,9,      10, /**/  1,100,  /**/  4,18,48, /**/  100,100,5,0,   /**/  60,0   },
 //15: 5th saw2sine
-	{  14,13,200, /**/  0,150,  /**/  2,1,1,   /**/  0,0,0,0      },
+	{  14,14, 13,13, 200, /**/  0,150,  /**/  2,1,1,   /**/  0,0,0,0,       /**/  50,0   },
 //16: sine swell
-	{  0,0,255,   /**/  1,100,  /**/  0,0,0,   /**/  0,0,0,0      },
+	{  0,0, 0,0,     255, /**/  1,90,   /**/  0,0,0,   /**/  0,0,0,0,       /**/  1,120  },
 //17: reverse piano
-	{  9,3,50,    /**/  1,60,   /**/  0,0,0,   /**/  14,10,0,35   },
-//------------------------------------------------------------------//
+	{  9,9, 3,7,      50, /**/  1,90,   /**/  0,0,0,   /**/  14,10,0,35,    /**/  30,50  },
+//18: soft pad
+	{  8,9, 0,0,     255, /**/  1,255,  /**/  0,0,0,   /**/  11,1,0,255,    /**/  10,127 },
+//--------------------------------------------------------------------------------------//
 };
 
 #define TOTAL_REVERB_PRESETS     5
@@ -269,7 +293,7 @@ float reverb_bank [TOTAL_REVERB_PRESETS][TOTAL_REVERB_PARAMETERS] =
 //------------------------------------------------------//
 };
 
-#define TOTAL_DELAY_PRESETS     4
+#define TOTAL_DELAY_PRESETS     5
 #define TOTAL_DELAY_PARAMETERS  5
 
 float delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
@@ -279,12 +303,14 @@ float delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
 //--------------------------------------------------//
 // 0: no delay
 	{     1, /**/    0.0,  /**/   0.0,   /**/    0, },
-// 1: super subtle delay
-	{  9000, /**/   0.05,  /**/   0.4,   /**/    1, },
-// 2: classic stereo echo
-	{ 20000, /**/    0.2,  /**/   0.4,   /**/    0, },
-// 3: huge delay
-	{ 20000, /**/    0.7,  /**/   0.2,   /**/    1, },
+// 1: super subtle delay left
+	{  9000, /**/    0.08, /**/   0.4,   /**/    1, },
+// 1: super subtle delay right
+	{  8000, /**/    0.08, /**/   0.4,   /**/    1, },
+// 3: classic stereo echo
+	{ 20000, /**/   0.24,  /**/   0.8,   /**/    1, },
+// 4: huge delay
+	{ 20000, /**/    0.7,  /**/   0.2,   /**/    0, },
 //--------------------------------------------------//
 };
 
@@ -292,78 +318,106 @@ float delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
 
 uint8_t channel_fx [TOTAL_VOICES][TOTAL_FX] =
 {
-//---------------------//
-//  reverb /**/ delay  //
-//---------------------//
+//----------------------//
+//  reverb  /**/ delay  //
+//----------------------//
 // channel 0
-	{  3,  /**/  2 },
+	{  3,   /**/   2    },
 // channel 1
-	{  3,  /**/  2 },
+	{  3,   /**/   2    },
 // channel 2
-	{  3,  /**/  2 },
+	{  3,   /**/   2    },
 // channel 3
-	{  3,  /**/  3 },
+	{  3,   /**/   3    },
 // channel 4
-	{  1,  /**/  0 },
+	{  1,   /**/   0    },
 // channel 5
-	{  1,  /**/  0 },
+	{  1,   /**/   0    },
 // channel 6
-	{  3,  /**/  3 },
+	{  3,   /**/   3    },
 // channel 7
-	{  1,  /**/  0 },
+	{  1,   /**/   0    },
 //---------------------//
 };
 
 float channel_gain [TOTAL_VOICES] =
 {
-//-----------------------------------------//
-//  0    1    2    3    4    5    6    7   //
-//-----------------------------------------//
-	1.0, 1.0, 1.0, 1.0, 1.0, 1.4, 0.6, 1.4,
-//-----------------------------------------//
+//----------------------------------------------------------------------------//
+//  0   /**/  1   /**/  2   /**/  3   /**/  4   /**/  5   /**/  6   /**/  7   //
+//----------------------------------------------------------------------------//
+   1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.4, /**/ 0.6, /**/ 1.3,
+//----------------------------------------------------------------------------//
 };
 
 void configure_instrument(uint8_t voice, uint8_t instrument_id)
 {
 	// waveform
-	osc_sample_1   [voice] = instrument_bank[instrument_id][0];
-	osc_sample_2   [voice] = instrument_bank[instrument_id][1];
-	env_wav_length [voice] = instrument_bank[instrument_id][2] * 2; // scale for int8_t to int16
+	osc_sample_1_l [voice] = instrument_bank[instrument_id][0];
+	osc_sample_1_r [voice] = instrument_bank[instrument_id][1];
+
+	osc_sample_2_l [voice] = instrument_bank[instrument_id][2];
+	osc_sample_2_r [voice] = instrument_bank[instrument_id][3];
+
+	env_wav_length [voice] = instrument_bank[instrument_id][4] * 2; // scale for int8_t to int16
 	env_wav_tick   [voice] = 1;
+
 	// volume
-	env_vol_type   [voice] = instrument_bank[instrument_id][3];
-	env_vol_length [voice] = instrument_bank[instrument_id][4] * 6;
+	env_vol_type   [voice] = instrument_bank[instrument_id][5];
+	env_vol_length [voice] = instrument_bank[instrument_id][6] * 6;
 	env_vol_tick   [voice] = 1;
+
 	// sweep
-	swp_type       [voice] = instrument_bank[instrument_id][5];
-	swp_length     [voice] = instrument_bank[instrument_id][6];
-	swp_target     [voice] = instrument_bank[instrument_id][7];
+	swp_type       [voice] = instrument_bank[instrument_id][7];
+	swp_length     [voice] = instrument_bank[instrument_id][8];
+	swp_target     [voice] = instrument_bank[instrument_id][9];
 	swp_tick       [voice] = 1;
+
 	// lfo
-	lfo_pitch      [voice] = instrument_bank[instrument_id][8];
-	lfo_intensity  [voice] = instrument_bank[instrument_id][9];
-	lfo_waveform   [voice] = instrument_bank[instrument_id][10];
-	lfo_length     [voice] = instrument_bank[instrument_id][11] * 10; // scale for int8 to int16
+	lfo_pitch      [voice] = instrument_bank[instrument_id][10];
+	lfo_intensity  [voice] = instrument_bank[instrument_id][11];
+	lfo_waveform   [voice] = instrument_bank[instrument_id][12];
+	lfo_length     [voice] = instrument_bank[instrument_id][13] * 10; // scale for int8 to int16
 	lfo_tick       [voice] = 1; // prevent lfo update glitch on lfo_tick zero
+
+	// stereo
+	osc_stereo_mix [voice] = (float)instrument_bank[instrument_id][14] / 100; // scale between 0.0 and 1.0  
+	osc_phase      [voice] = instrument_bank[instrument_id][15];
 }
 
-void update_wavetable(uint8_t voice, int8_t sample_1, int8_t sample_2, float volume, uint8_t mix_percentage)
+void update_wavetable(uint8_t voice, int8_t sample_1_l, int8_t sample_2_l, int8_t sample_1_r, int8_t sample_2_r, float volume, uint8_t mix_percentage, float stereo_separation, uint8_t phase)
 {
-	int16_t waveform_output;
+	int16_t waveform_output_l;
+	int16_t waveform_output_r;
 
 	for (int16_t i = 0; i < WAVETABLE_SIZE; i++)
 	{
 		// read sample 1
-		waveform_output = wavetable_data[(i + (sample_1 * WAVETABLE_SIZE))];
+		waveform_output_l = wavetable_data[(i + (sample_1_l * WAVETABLE_SIZE))];
+		waveform_output_r = wavetable_data[(i + (sample_1_r * WAVETABLE_SIZE))];
+
 		// merge with sample 2
-		waveform_output = map(mix_percentage, 0, 100, waveform_output, wavetable_data[(i + (sample_2 * WAVETABLE_SIZE))]);
+		waveform_output_l = map(mix_percentage, 0, 100, waveform_output_l, wavetable_data[(i + (sample_2_l * WAVETABLE_SIZE))]);
+		waveform_output_r = map(mix_percentage, 0, 100, waveform_output_r, wavetable_data[(((i + phase) % WAVETABLE_SIZE) + (sample_2_r * WAVETABLE_SIZE))]);
+
 		// apply volume
 		if (volume > 0)
-			waveform_output = (waveform_output * OSC_GAIN) * volume;
+		{
+			waveform_output_l = (waveform_output_l * OSC_GAIN) * volume;
+			waveform_output_r = (waveform_output_r * OSC_GAIN) * volume;
+		}
 		else
-			waveform_output = 0;
+		{
+			waveform_output_l = 0;
+			waveform_output_r = 0;
+		}
+
+		// mix stereo channels
+		float stereo_mix_l = (waveform_output_l * (1.0 - stereo_separation)) + (waveform_output_r * stereo_separation);
+		float stereo_mix_r = (waveform_output_r * (1.0 - stereo_separation)) + (waveform_output_l * stereo_separation);
+
 		// write to table
-		osc_wavetable[voice][i] = waveform_output;
+		osc_wavetable[0][voice][i] = (int16_t)stereo_mix_l;
+		osc_wavetable[1][voice][i] = (int16_t)stereo_mix_r;
 	}
 }
 
@@ -374,7 +428,7 @@ int main()
 	clock_t begin = clock();
 
 	printf("\nLet's build a wave file.\n\n");
-	printf("Total samples:  %u\n",   TOTAL_SAMPLES);
+	printf("Total samples:  %u\n", TOTAL_SAMPLES);
 	printf("Final filesize: %.2fMB\n\n", TOTAL_FILESIZE);
 
 	// define & open the output file
@@ -447,7 +501,7 @@ int main()
 		mmml_volume    [v] = 0.5;
 		mmml_octave    [v] = 2;
 
-		update_wavetable(v, osc_sample_1[v], osc_sample_2[v], osc_volume[v], osc_mix[v]);
+		update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
 		configure_instrument(v, 0);
 	}
 
@@ -472,11 +526,18 @@ int main()
 		// generate samples //
 		//==================//
 
-		int16_t output [TOTAL_VOICES];
+		int16_t output_l [TOTAL_VOICES];
+		int16_t output_r [TOTAL_VOICES];
+		uint8_t current_osc_sample;
+		float   current_smp_sample;
 
 		//~~~~ oscillators ~~~~//
 		for (uint8_t v = 0; v < TOTAL_VOICES - 1; v++) // all voices minus the last (sampler)
-			output[v] = osc_wavetable[v][(uint8_t)((osc_accumulator[v] += (osc_pitch[v] + lfo_output[v])) >> 9)];
+		{
+			current_osc_sample = (osc_accumulator[v] += (osc_pitch[v] + lfo_output[v])) >> 9;
+			output_l[v] = osc_wavetable[0][v][current_osc_sample];
+			output_r[v] = osc_wavetable[1][v][current_osc_sample];
+		}
 		//~~~~~~~~~~~~~~~~~~~~~//
 
 		//<><><> sampler <><><>//
@@ -488,14 +549,18 @@ int main()
 
 		// play sample and adjust volume
 		if (sample_mute == 0)
-			output[TOTAL_VOICES - 1] = (float)((wavetable[sample_pos] * SMP_GAIN) * mmml_volume[TOTAL_VOICES - 1]);
+		{
+			current_smp_sample = (wavetable[sample_pos] * SMP_GAIN) * mmml_volume[TOTAL_VOICES - 1];
+			output_l[TOTAL_VOICES - 1] = current_smp_sample;
+			output_r[TOTAL_VOICES - 1] = current_smp_sample;
+		}
 		//<><><><><><><><><><>//
 
 		// stick the data in a .wav file
 		for (uint8_t v = 0; v < TOTAL_VOICES; v++)
 		{
-			fwrite (output+v, 2, 1, temp_files[v]); // L
-			fwrite (output+v, 2, 1, temp_files[v]); // R
+			fwrite (output_l+v, 2, 1, temp_files[v]); // L
+			fwrite (output_r+v, 2, 1, temp_files[v]); // R
 		}
 
 		//=============//
@@ -535,13 +600,13 @@ int main()
 					if (env_vol_type[v] == 0)
 					{
 						osc_volume[v] = map(env_vol_tick[v], 0, env_vol_length[v], mmml_volume[v], 0);
-						update_wavetable(v, osc_sample_1[v], osc_sample_2[v], osc_volume[v], osc_mix[v]);
+						update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
 						env_vol_tick[v]++;
 					}
 					else if (env_vol_type[v] == 1)
 					{
 						osc_volume[v] = map(env_vol_tick[v], 0, env_vol_length[v], 0, mmml_volume[v]);
-						update_wavetable(v, osc_sample_1[v], osc_sample_2[v], osc_volume[v], osc_mix[v]);
+						update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
 						env_vol_tick[v]++;
 					}
 				}
@@ -551,7 +616,7 @@ int main()
 				if (env_wav_tick[v] <= env_wav_length[v])
 				{
 					osc_mix[v] = map(env_wav_tick[v], 0, env_wav_length[v], 0, 100);
-					update_wavetable(v, osc_sample_1[v], osc_sample_2[v], osc_volume[v], osc_mix[v]);
+					update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
 					env_wav_tick[v]++;
 				}
 			}
@@ -608,6 +673,7 @@ int main()
 		fread(channel_buffer_int,TOTAL_SAMPLES,2,temp_files[0]);
 
 		//=========== PROCESS FX ===========//
+
 		// convert int to float (to send to fv_process)
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
 			channel_buffer_float[i] = (float)channel_buffer_int[i] * channel_gain[v];
@@ -635,6 +701,33 @@ int main()
 		free(channel_buffer_float);
 		fclose(temp_files[v]);
 		remove(filename);
+	}
+
+	printf("Normalising track...\n\n");
+
+	// normaliser
+	int16_t loudest_sample;
+	float   multiplier;
+	
+	for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
+	{
+		int16_t current_sample = abs(buffer_int[i]);
+	
+		if (current_sample > loudest_sample)
+			loudest_sample = current_sample;
+	}
+
+	if (loudest_sample < 32767)
+	{
+		multiplier = 32767.0 / loudest_sample;
+		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
+			buffer_int[i] = buffer_int[i] * multiplier;
+	}
+	else
+	{
+		printf("Too loud, this normaliser is lazy (and done after the conversion to 16-bit) so it only boosts.\n\n");
+		remove("output.wav");
+		exit(0);
 	}
 
 	printf("Writing to output file...\n\n");
@@ -846,7 +939,7 @@ void mmml()
 
 							env_vol_tick[v] = 0;
 
-							update_wavetable(v, osc_sample_1[v], osc_sample_2[v], osc_volume[v], osc_mix[v]);
+							update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
 						}
 					}
 					// trigger the sampler (last voice is always sampler)
