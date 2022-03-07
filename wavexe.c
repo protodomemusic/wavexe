@@ -19,6 +19,7 @@
 *                - Stereo drums!
 *                - Optimise to make processing a little faster.
 *                - Panning in MMML.
+*                - EQ per track.
 *                - Migrate to -1.0 - 1.0 signal levels.
 *                - MIDI -> MMML conversion.
 *                - Sort out the weird mixing/balancing to work
@@ -37,6 +38,7 @@
 *                - Find and eliminate annoying DC-offset. It's
 *                  not the normaliser/FX, which narrows it down
 *                  a bit.
+*                - Normaliser doesn't work correctly when loud.
 *                - Weird 'notch' in waveform when switching
 *                  between pitches.
 *                - Number of voices is broken for some numbers.
@@ -58,6 +60,7 @@
 
 #include "freeverb.c"
 #include "simple_delay.c"
+#include "simple_filter.c"
 #include "wavexe-mmml-data.h"
 #include "wavexe-sample-data.h"
 
@@ -69,11 +72,11 @@
 #define SUBCHUNK_1_SIZE  16     // dunno, what's this?
 #define BYTE_RATE        SAMPLE_RATE * TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
 #define BLOCK_ALIGN      TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
-#define TOTAL_SAMPLES    (PLAY_TIME * 2) * SAMPLE_RATE
-#define SUBCHUNK_2_SIZE  TOTAL_SAMPLES * TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
+#define TOTAL_SAMPLES    (PLAY_TIME * TOTAL_CHANNELS) * SAMPLE_RATE
+#define SUBCHUNK_2_SIZE  TOTAL_SAMPLES * BITS_PER_SAMPLE / 8
 #define CHUNK_SIZE       4 + (8 + SUBCHUNK_1_SIZE) + (8 + SUBCHUNK_2_SIZE)
 
-#define TOTAL_FILESIZE   (float)TOTAL_SAMPLES * 2 / 1000000
+#define TOTAL_FILESIZE   (float)TOTAL_SAMPLES * 2 / 1000000 // x2 because 16-bit
 #define TOTAL_DISKSPACE  TOTAL_FILESIZE * TOTAL_VOICES
 
 // holds the 44 byte header information
@@ -105,6 +108,24 @@ int16_t buffer_int [TOTAL_SAMPLES];
 #define OSC_GAIN      18
 #define SMP_GAIN      38
 #define MOD_SPEED     200
+
+// FX definitions
+#define TOTAL_EQ_BANDS   2
+#define TOTAL_EQ_PASSES  3
+#define FILTERS_PER_BAND 2
+
+/* EQ data format:
+ * lowpass mix,  lowpass frequency
+ * highpass mix, highpass frequency
+ */
+
+float eq_data[TOTAL_EQ_BANDS][FILTERS_PER_BAND * 2] =
+{
+// band 1
+	{ 0.2, 4800,  0.5, 200000 }, // boost mids
+// band 2
+	{ 0.0, 0,     0.0, 0 }, // unused
+};
 
 const uint16_t notes[TOTAL_NOTES] =
 {
@@ -656,10 +677,12 @@ int main()
 	// end the program //
 	//=================//
 
+	float *master_buffer_float = (float*)malloc(TOTAL_SAMPLES * sizeof(float));
+
 	// process each channel
 	for (uint8_t v = 0; v < TOTAL_VOICES; v++)
 	{
-		printf("Processing channel %d...\n", v);
+		printf("Processing channel %d: ", v);
 
 		// open again to read 
 		char filename[16];
@@ -678,13 +701,13 @@ int main()
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
 			channel_buffer_float[i] = (float)channel_buffer_int[i] * channel_gain[v];
 
-		printf("Processing delay...\n");
+		printf("Delay | ");
 
 		// process delay
 		delay_process(channel_buffer_float,TOTAL_SAMPLES,(uint32_t)delay_bank[channel_fx[v][1]][0],
 			delay_bank[channel_fx[v][1]][1],delay_bank[channel_fx[v][1]][2],(uint8_t)delay_bank[channel_fx[v][1]][3]);
 
-		printf("Processing reverb...\n\n");
+		printf("Reverb\n");
 
 		// process reverb
 		reverb_process(channel_buffer_float,TOTAL_SAMPLES,
@@ -692,9 +715,9 @@ int main()
 			reverb_bank[channel_fx[v][0]][2], reverb_bank[channel_fx[v][0]][3],
 			reverb_bank[channel_fx[v][0]][4]);
 
-		// convert float back to int & copy channel buffer to final buffer
+		// merge with other channels
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-			buffer_int[i] += (int16_t)channel_buffer_float[i];
+			master_buffer_float[i] += channel_buffer_float[i];
 
 		// cleanup
 		free(channel_buffer_int);
@@ -703,32 +726,52 @@ int main()
 		remove(filename);
 	}
 
-	printf("Normalising track...\n\n");
+	printf("\nProcessing master EQ...\n");
+
+	// process filters
+	for(uint8_t i = 0; i < TOTAL_EQ_BANDS; i++)
+	{
+		for(uint8_t j = 0; j < TOTAL_EQ_PASSES; j++)
+		{
+			filter_process(master_buffer_float,TOTAL_SAMPLES,0,eq_data[i][0],eq_data[i][1]);
+			filter_process(master_buffer_float,TOTAL_SAMPLES,1,eq_data[i][2],eq_data[i][3]);
+		}
+	}
+
+	printf("Normalising track: ");
 
 	// normaliser
 	int16_t loudest_sample;
 	float   multiplier;
+	float   divisor;
 	
 	for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
 	{
-		int16_t current_sample = abs(buffer_int[i]);
+		int16_t current_sample = fabs(master_buffer_float[i]);
 	
 		if (current_sample > loudest_sample)
 			loudest_sample = current_sample;
 	}
 
-	if (loudest_sample < 32767)
+	if (loudest_sample < 32767.0)
 	{
+		printf("Quiet, needs boosting.\n");
+
 		multiplier = 32767.0 / loudest_sample;
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-			buffer_int[i] = buffer_int[i] * multiplier;
+			master_buffer_float[i] = master_buffer_float[i] * multiplier;
 	}
 	else
 	{
-		printf("Too loud, this normaliser is lazy (and done after the conversion to 16-bit) so it only boosts.\n\n");
-		remove("output.wav");
-		exit(0);
+		printf("Loud, needs quietening.\n");
+		divisor = loudest_sample / 32767.0;
+		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
+			master_buffer_float[i] = master_buffer_float[i] * divisor;
 	}
+
+	// convert float to 16-bit for wave file export
+	for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
+		buffer_int[i] += (int16_t)master_buffer_float[i];
 
 	printf("Writing to output file...\n\n");
 
