@@ -12,20 +12,20 @@
  * 
  *******************************************************************************/
 
-#define NUMCOMBS       8
-#define NUMALLPASSES   4
-#define MUTED          0.0
-#define FIXEDGAIN      0.015
-#define SCALEWET       3
-#define SCALEDRY       2
-#define SCALEDAMP      0.4
-#define SCALEROOM      0.28
-#define STEREOSPREAD   23
-#define OFFSETROOM     0.7
+#define NUMCOMBS        4
+#define NUMALLPASSES    2
+#define MUTED           0.0
+#define FIXEDGAIN       0.05
+#define SCALEWET        1
+#define SCALEDRY        1
+#define SCALEDAMP       0.4
+#define SCALEROOM       0.28
+#define STEREOSPREAD    23
+#define OFFSETROOM      0.7
 
-#define RV_SAMPLE_RATE 44100.0
-#define FREEZEMODE     0.5
-#define TOTAL_CHANNELS 2
+#define RV_SAMPLE_RATE  44100.0
+#define FREEZEMODE      0.5
+#define TOTAL_CHANNELS  2
 
 float comb_feedback    [TOTAL_CHANNELS][NUMCOMBS];
 float comb_filterstore [TOTAL_CHANNELS][NUMCOMBS];
@@ -91,19 +91,9 @@ static void reverb_update()
 	verb_wet1 = verb_wet * (verb_width * 0.5 + 0.5);
 	verb_wet2 = verb_wet * ((1 - verb_width) * 0.5);
 
-	if (verb_mode >= FREEZEMODE)
-	{
-		verb_roomsize1 = 1;
-		verb_damp1 = 0;
-		verb_gain = MUTED;
-
-	}
-	else
-	{
-		verb_roomsize1 = verb_roomsize;
-		verb_damp1 = verb_damp;
-		verb_gain = FIXEDGAIN;
-	}
+	verb_roomsize1 = verb_roomsize;
+	verb_damp1     = verb_damp;
+	verb_gain      = FIXEDGAIN;
 
 	for (int i = 0; i < NUMCOMBS; i++)
 	{
@@ -129,20 +119,18 @@ void reverb_process(float *input_buffer, int input_length, float v_width, float 
 	const int combs[]     = { 1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617 };
 	const int allpasses[] = { 556, 441, 341, 225 };
 
-	double multiplier = RV_SAMPLE_RATE / RV_SAMPLE_RATE;
-
 	// init comb buffers
 	for (int i = 0; i < NUMCOMBS; i++)
 	{
-		comb_bufsize[0][i] = combs[i] * multiplier;
-		comb_bufsize[1][i] = (combs[i] + STEREOSPREAD) * multiplier;
+		comb_bufsize[0][i] = combs[i];
+		comb_bufsize[1][i] = (combs[i] + STEREOSPREAD);
 	}
 
 	// init allpass buffers
 	for (int i = 0; i < NUMALLPASSES; i++)
 	{
-		allpass_bufsize[0][i] = allpasses[i] * multiplier;
-		allpass_bufsize[1][i] = (allpasses[i] + STEREOSPREAD) * multiplier;
+		allpass_bufsize[0][i] = allpasses[i];
+		allpass_bufsize[1][i] = (allpasses[i] + STEREOSPREAD);
 	}
 
 	//------- initialise parameters -------//
@@ -161,7 +149,7 @@ void reverb_process(float *input_buffer, int input_length, float v_width, float 
 	{
 		float outl  = 0;
 		float outr  = 0;
-		float input = (input_buffer[i] + input_buffer[i + 1]) * verb_gain;
+		float input = (input_buffer[i] + input_buffer[i+1]) * verb_gain;
 
 		/* accumulate comb filters in parallel */
 		for (int i = 0; i < NUMCOMBS; i++)

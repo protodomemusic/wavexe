@@ -9,43 +9,25 @@
 *                Reverb powered by:
 *                https://github.com/protodomemusic/cverb
 *
-*                The wave building code was adapted from:
-*                https://stackoverflow.com/questions/23030980/
-*                creating-a-mono-wav-file-using-c - thanks
-*                Safayet Ahmed!
-*
 *                TO DO:
-*                - DC offset bug (see bugs).
-*                - Stereo drums!
-*                - Optimise to make processing a little faster.
-*                - Panning in MMML.
-*                - EQ per track.
-*                - Migrate to -1.0 - 1.0 signal levels.
-*                - MIDI -> MMML conversion.
-*                - Sort out the weird mixing/balancing to work
-*                  better w/ variable voices and ensure no
-*                  clipping.
+*                - MIDI -> MMML conversion (doing it by hand
+*                  is honestly exhausting).
 *                - Make volumes ('v' commands) more dynamic.
-*                - Portamento.
-*                - Link LFO to different parameters?
-*                - A limiter would be cool.
-*                - Dither?
-*                - Allow definition of custom instruments in
-*                  MMML.
 *                - Control of FX in MMML.
+*                - More efficient filtering/EQ.
+*                - Portamento.
 *
 *                BUGS:
 *                - Find and eliminate annoying DC-offset. It's
 *                  not the normaliser/FX, which narrows it down
 *                  a bit.
-*                - Normaliser doesn't work correctly when loud.
 *                - Weird 'notch' in waveform when switching
 *                  between pitches.
 *                - Number of voices is broken for some numbers.
 *                  Selecting only 6 or 8 works right now.
 *
 *  AUTHOR:       Blake 'PROTODOME' Troise
-*  PLATFORM:     Command Line Application (MacOS)
+*  PLATFORM:     Command Line Application (MacOS / Linux)
 *  DATE:         Original: 10th February 2021
 *                Remaster: 14th February 2022
 **************************************************************/
@@ -58,48 +40,17 @@
 #include <time.h>
 #include <math.h>
 
+#define PLAY_TIME        24     // duration of recording in seconds
+#define SAMPLE_RATE      44100  // cd quality audio
+#define TOTAL_CHANNELS   2      // stereo file
+#define TOTAL_SAMPLES    (PLAY_TIME * TOTAL_CHANNELS) * SAMPLE_RATE
+
+#include "wave-export.c"
 #include "freeverb.c"
-#include "simple_delay.c"
-#include "simple_filter.c"
+#include "simple-delay.c"
+#include "simple-filter.c"
 #include "wavexe-mmml-data.h"
 #include "wavexe-sample-data.h"
-
-#define PLAY_TIME        22     // duration of recording in seconds
-#define SAMPLE_RATE      44100  // cd quality audio
-#define BITS_PER_SAMPLE  16     // 16-bit wave files require 16 bits per sample
-#define AUDIO_FORMAT     1      // for PCM data
-#define TOTAL_CHANNELS   2      // mono file
-#define SUBCHUNK_1_SIZE  16     // dunno, what's this?
-#define BYTE_RATE        SAMPLE_RATE * TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
-#define BLOCK_ALIGN      TOTAL_CHANNELS * BITS_PER_SAMPLE / 8
-#define TOTAL_SAMPLES    (PLAY_TIME * TOTAL_CHANNELS) * SAMPLE_RATE
-#define SUBCHUNK_2_SIZE  TOTAL_SAMPLES * BITS_PER_SAMPLE / 8
-#define CHUNK_SIZE       4 + (8 + SUBCHUNK_1_SIZE) + (8 + SUBCHUNK_2_SIZE)
-
-#define TOTAL_FILESIZE   (float)TOTAL_SAMPLES * 2 / 1000000 // x2 because 16-bit
-#define TOTAL_DISKSPACE  TOTAL_FILESIZE * TOTAL_VOICES
-
-// holds the 44 byte header information
-typedef struct wavfile_header_s
-{
-	int8_t  chunk_id[4];
-	int32_t chunk_size;
-	int8_t  format[4];
-	int8_t  subchunk_1_id[4];
-	int32_t subchunk_1_size;
-	int16_t audio_format;
-	int16_t total_channels;
-	int32_t sample_rate;
-	int32_t byte_rate;
-	int16_t block_align;
-	int16_t bits_per_sample;
-	int8_t  subchunk_2_id[4];
-	int32_t subchunk_2_size;
-}
-wavfile_header_t;
-
-// where we'll store our final wave data
-int16_t buffer_int [TOTAL_SAMPLES];
 
 // important definitions
 #define MAXLOOPS      5
@@ -122,9 +73,9 @@ int16_t buffer_int [TOTAL_SAMPLES];
 float eq_data[TOTAL_EQ_BANDS][FILTERS_PER_BAND * 2] =
 {
 // band 1
-	{ 0.2, 4800,  0.5, 200000 }, // boost mids
+	{ 0.2, 4800,  0.2, 200000 }, // boost mids
 // band 2
-	{ 0.0, 0,     0.0, 0 }, // unused
+	{ 0.0, 0,     0.2, 2000 }, // sizzle
 };
 
 const uint16_t notes[TOTAL_NOTES] =
@@ -161,7 +112,7 @@ uint8_t  osc_sample_1_l    [TOTAL_VOICES - 1];
 uint8_t  osc_sample_1_r    [TOTAL_VOICES - 1];
 uint8_t  osc_sample_2_l    [TOTAL_VOICES - 1];
 uint8_t  osc_sample_2_r    [TOTAL_VOICES - 1];
-int16_t  osc_wavetable     [2][TOTAL_VOICES - 1][WAVETABLE_SIZE];
+int16_t  osc_wavetable     [TOTAL_VOICES - 1][2][WAVETABLE_SIZE];
 uint8_t  osc_instrument    [TOTAL_VOICES - 1];
 
 // lfo variables
@@ -191,17 +142,21 @@ uint8_t  swp_type          [TOTAL_VOICES - 1];
 uint8_t  swp_target        [TOTAL_VOICES - 1];
 
 // mmml variables
-float    mmml_volume       [TOTAL_VOICES];
-uint16_t mmml_octave       [TOTAL_VOICES];
+float    mmml_volume       [TOTAL_VOICES] = {0.5};
+uint16_t mmml_octave       [TOTAL_VOICES] = {2};
 uint16_t mmml_length       [TOTAL_VOICES];
 uint16_t mmml_note         [TOTAL_VOICES];
 int8_t   mmml_transpose    [TOTAL_VOICES];
+int8_t   mmml_panning      [TOTAL_VOICES];
 uint8_t  loops_active      [TOTAL_VOICES];
 uint8_t  current_length    [TOTAL_VOICES];
 uint16_t data_pointer      [TOTAL_VOICES];
 uint16_t loop_duration     [MAXLOOPS][TOTAL_VOICES];
 uint16_t loop_point        [MAXLOOPS][TOTAL_VOICES];
 uint16_t pointer_location  [TOTAL_VOICES];
+
+// channel data variables
+int16_t  channel_buffer_int [TOTAL_VOICES][TOTAL_SAMPLES];
 
 // sampler variables
 uint16_t sample_slowdown_counter;
@@ -234,8 +189,10 @@ float map(float x, float in_min, float in_max, float out_min, float out_max)
  * - Envelope length (in ticks)
  * - Sweep direction
  *      0: No sweep
- *      1: Rise to target (ties reset target)       2: fall to target (ties reset target)
- *      3: Rise to target (ties don't reset target) 4: fall to target (ties don't reset target)
+ *      1: Rise to target (ties reset target)
+ *      2: fall to target (ties reset target)
+ *      3: Rise to target (ties don't reset target)
+ *      4: fall to target (ties don't reset target)
  * - Sweep length (in ticks)
  * - Sweep target (in semitones)
  * - LFO frequency (in Hz)
@@ -298,67 +255,69 @@ uint8_t instrument_bank [TOTAL_INSTRUMENTS][INSTRUMENT_PARAMETERS] =
 #define TOTAL_REVERB_PRESETS     5
 #define TOTAL_REVERB_PARAMETERS  5
 
-float reverb_bank [TOTAL_REVERB_PRESETS][TOTAL_REVERB_PARAMETERS] =
+uint8_t reverb_bank [TOTAL_REVERB_PRESETS][TOTAL_REVERB_PARAMETERS] =
 {
 //-------------------------------------------------------//
 //  width  /**/  dry  /**/  wet  /**/  damp  /**/  room  //
 //-------------------------------------------------------//
 // 0: no reverb
-	{ 0.0, /**/  1.0, /**/  0.0, /**/   0.0, /**/   0.0  },
+	{   0, /**/  100, /**/    0, /**/     0, /**/     0  },
 // 1: a dusting
-	{ 2.5, /**/  1.0, /**/ 0.05, /**/ 0.005, /**/ 0.005  },
+	{ 150, /**/  100, /**/   15, /**/    10, /**/    10  },
 // 2: a little space
-	{ 2.2, /**/  1.0, /**/  0.1, /**/   0.5, /**/   0.5  },
+	{ 150, /**/  100, /**/   15, /**/    50, /**/    30  },
 // 3: roomy
-	{ 3.0, /**/  1.0, /**/  0.2, /**/   0.5, /**/   0.8  },
+	{ 200, /**/  100, /**/   20, /**/    60, /**/    80  },
+// 4: spacious
+	{ 200, /**/  100, /**/   40, /**/   100, /**/    80  },
 //------------------------------------------------------//
 };
 
 #define TOTAL_DELAY_PRESETS     5
 #define TOTAL_DELAY_PARAMETERS  5
 
-float delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
+uint16_t delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
 {
-//--------------------------------------------------//
-//   offset  /**/  volume  /**/  spread  /**/  dir  //
-//--------------------------------------------------//
+//-------------------------------------------------------//
+//  offset /**/ feedback /**/ spread /**/  dir  /**/ mix //
+//-------------------------------------------------------//
 // 0: no delay
-	{     1, /**/    0.0,  /**/   0.0,   /**/    0, },
+	{    0, /**/      0, /**/     0, /**/    0, /**/   0 },
 // 1: super subtle delay left
-	{  9000, /**/    0.08, /**/   0.4,   /**/    1, },
-// 1: super subtle delay right
-	{  8000, /**/    0.08, /**/   0.4,   /**/    1, },
+	{  140, /**/     99, /**/    20, /**/    1, /**/   8 },
+// 2: super subtle delay right
+	{  140, /**/     99, /**/    20, /**/    0, /**/   8 },
 // 3: classic stereo echo
-	{ 20000, /**/   0.24,  /**/   0.8,   /**/    1, },
+	{  280, /**/     40, /**/    80, /**/    0, /**/  40 },
 // 4: huge delay
-	{ 20000, /**/    0.7,  /**/   0.2,   /**/    0, },
-//--------------------------------------------------//
+	{  280, /**/     99, /**/    20, /**/    1, /**/  50 },
+//-------------------------------------------------------//
 };
 
 #define TOTAL_FX 2
 
 uint8_t channel_fx [TOTAL_VOICES][TOTAL_FX] =
 {
-//----------------------//
-//  reverb  /**/ delay  //
-//----------------------//
+//-------------------//
+// reverb /**/ delay //
+//-------------------//
 // channel 0
-	{  3,   /**/   2    },
+	{  3, /**/   1 },
 // channel 1
-	{  3,   /**/   2    },
+	{  3, /**/   2 },
 // channel 2
-	{  3,   /**/   2    },
+	{  3, /**/   1 },
 // channel 3
-	{  3,   /**/   3    },
+	{  3, /**/   3 },
 // channel 4
-	{  1,   /**/   0    },
+	{  1, /**/   0 },
 // channel 5
-	{  1,   /**/   0    },
+	{  1, /**/   0 },
 // channel 6
-	{  3,   /**/   3    },
+	{  4, /**/   4 },
 // channel 7
-	{  1,   /**/   0    },
-//---------------------//
+	{  1, /**/   0 },
+//-------------------//
 };
 
 float channel_gain [TOTAL_VOICES] =
@@ -366,7 +325,7 @@ float channel_gain [TOTAL_VOICES] =
 //----------------------------------------------------------------------------//
 //  0   /**/  1   /**/  2   /**/  3   /**/  4   /**/  5   /**/  6   /**/  7   //
 //----------------------------------------------------------------------------//
-   1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.4, /**/ 0.6, /**/ 1.3,
+   1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.4, /**/ 0.6, /**/ 1.0,
 //----------------------------------------------------------------------------//
 };
 
@@ -379,7 +338,7 @@ void configure_instrument(uint8_t voice, uint8_t instrument_id)
 	osc_sample_2_l [voice] = instrument_bank[instrument_id][2];
 	osc_sample_2_r [voice] = instrument_bank[instrument_id][3];
 
-	env_wav_length [voice] = instrument_bank[instrument_id][4] * 2; // scale for int8_t to int16
+	env_wav_length [voice] = instrument_bank[instrument_id][4] * 3; // scale for int8_t to int16
 	env_wav_tick   [voice] = 1;
 
 	// volume
@@ -405,10 +364,32 @@ void configure_instrument(uint8_t voice, uint8_t instrument_id)
 	osc_phase      [voice] = instrument_bank[instrument_id][15];
 }
 
-void update_wavetable(uint8_t voice, int8_t sample_1_l, int8_t sample_2_l, int8_t sample_1_r, int8_t sample_2_r, float volume, uint8_t mix_percentage, float stereo_separation, uint8_t phase)
+void update_wavetable(
+	uint8_t voice,
+	int8_t  sample_1_l,
+	int8_t  sample_2_l,
+	int8_t  sample_1_r,
+	int8_t  sample_2_r,
+	float   volume,
+	uint8_t mix_percentage,
+	float   stereo_separation,
+	uint8_t phase)
 {
+	// let's calculate the panning first
+	float panning_l = 1.0;
+	float panning_r = 1.0;
+
+	float pan_mapped = (((mmml_panning[voice] / 100.0) + 1) / 2.0) * (3.14 / 2.0);
+
+	panning_r = sin(pan_mapped);
+	panning_l = cos(pan_mapped);
+
+	// now let's update the voice's wavetable
 	int16_t waveform_output_l;
 	int16_t waveform_output_r;
+
+	float stereo_mix_l;
+	float stereo_mix_r;
 
 	for (int16_t i = 0; i < WAVETABLE_SIZE; i++)
 	{
@@ -423,8 +404,8 @@ void update_wavetable(uint8_t voice, int8_t sample_1_l, int8_t sample_2_l, int8_
 		// apply volume
 		if (volume > 0)
 		{
-			waveform_output_l = (waveform_output_l * OSC_GAIN) * volume;
-			waveform_output_r = (waveform_output_r * OSC_GAIN) * volume;
+			waveform_output_l = ((waveform_output_l * OSC_GAIN) * volume) * panning_l;
+			waveform_output_r = ((waveform_output_r * OSC_GAIN) * volume) * panning_r;
 		}
 		else
 		{
@@ -433,12 +414,12 @@ void update_wavetable(uint8_t voice, int8_t sample_1_l, int8_t sample_2_l, int8_
 		}
 
 		// mix stereo channels
-		float stereo_mix_l = (waveform_output_l * (1.0 - stereo_separation)) + (waveform_output_r * stereo_separation);
-		float stereo_mix_r = (waveform_output_r * (1.0 - stereo_separation)) + (waveform_output_l * stereo_separation);
+		stereo_mix_l = ((waveform_output_l * (1.0 - stereo_separation)) + (waveform_output_r * stereo_separation));
+		stereo_mix_r = ((waveform_output_r * (1.0 - stereo_separation)) + (waveform_output_l * stereo_separation));
 
 		// write to table
-		osc_wavetable[0][voice][i] = (int16_t)stereo_mix_l;
-		osc_wavetable[1][voice][i] = (int16_t)stereo_mix_r;
+		osc_wavetable[voice][0][i] = (int16_t)stereo_mix_l;
+		osc_wavetable[voice][1][i] = (int16_t)stereo_mix_r;
 	}
 }
 
@@ -446,83 +427,30 @@ void update_wavetable(uint8_t voice, int8_t sample_1_l, int8_t sample_2_l, int8_
 
 int main()
 {
+	printf("Let's build a song!\n");
+	printf("Total samples: %d\n\n", TOTAL_SAMPLES);
+
+	// get start time (for checking processing time)
 	clock_t begin = clock();
 
-	printf("\nLet's build a wave file.\n\n");
-	printf("Total samples:  %u\n", TOTAL_SAMPLES);
-	printf("Final filesize: %.2fMB\n\n", TOTAL_FILESIZE);
-
-	// define & open the output file
-	FILE* output_wave_file;
-	output_wave_file = fopen("./output.wav", "w");
-
-	//===== WAVE HEADER CODE =====//
-
-	wavfile_header_t wav_header;
-
-	wav_header.chunk_id[0] = 'R';
-	wav_header.chunk_id[1] = 'I';
-	wav_header.chunk_id[2] = 'F';
-	wav_header.chunk_id[3] = 'F';
-
-	wav_header.chunk_size = CHUNK_SIZE;
-
-	wav_header.format[0] = 'W';
-	wav_header.format[1] = 'A';
-	wav_header.format[2] = 'V';
-	wav_header.format[3] = 'E';
-
-	wav_header.subchunk_1_id[0] = 'f';
-	wav_header.subchunk_1_id[1] = 'm';
-	wav_header.subchunk_1_id[2] = 't';
-	wav_header.subchunk_1_id[3] = ' ';
-
-	wav_header.subchunk_1_size  = SUBCHUNK_1_SIZE;
-	wav_header.audio_format     = AUDIO_FORMAT;
-	wav_header.total_channels   = TOTAL_CHANNELS;
-	wav_header.sample_rate      = SAMPLE_RATE;
-	wav_header.byte_rate        = BYTE_RATE;
-	wav_header.block_align      = BLOCK_ALIGN;
-	wav_header.bits_per_sample  = BITS_PER_SAMPLE;
-
-	wav_header.subchunk_2_id[0] = 'd';
-	wav_header.subchunk_2_id[1] = 'a';
-	wav_header.subchunk_2_id[2] = 't';
-	wav_header.subchunk_2_id[3] = 'a';
-	wav_header.subchunk_2_size  = SUBCHUNK_2_SIZE;
-
-	// write header to file
-	fwrite(&wav_header, sizeof(wavfile_header_t), 1, output_wave_file);
-
-	// create temp files to store individual channel data as
-	// storing in ram can be too costly for raw PCM (especially
-	// on something like the raspberry pi)
-
-	printf("Creating temp files...\n");
-
-	FILE *temp_files [TOTAL_VOICES];
-
-	for (uint8_t i = 0; i < TOTAL_VOICES; i++)
-	{ 
-		char temp_filename[16];
-		sprintf (temp_filename, "ch%d-temp", i);
-		temp_files[i] = fopen (temp_filename, "w");
-	}
-
-	printf("Starting synthesis...\n\n");
-
-	//===== WAVE SAMPLE DATA CODE =====//
+	printf("Starting synthesis (this can take a little time)...\n\n");
 
 	uint32_t sample_current;
 
 	// initial variables
 	for (uint8_t v = 0; v < TOTAL_VOICES; v++)
 	{
-		// mmml default values
-		mmml_volume    [v] = 0.5;
-		mmml_octave    [v] = 2;
-
-		update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
+		update_wavetable(
+			v,
+			osc_sample_1_l [v],
+			osc_sample_2_l [v],
+			osc_sample_1_r [v],
+			osc_sample_2_r [v],
+			osc_volume     [v],
+			osc_mix        [v],
+			osc_stereo_mix [v],
+			osc_phase      [v]
+		);
 		configure_instrument(v, 0);
 	}
 
@@ -541,7 +469,7 @@ int main()
 
 	uint32_t counter;
 
-	for(uint32_t t = 0; t < TOTAL_SAMPLES - 1; t+=2)
+	for(uint32_t t = 0; t < TOTAL_SAMPLES - 1; t += 2)
 	{
 		//==================//
 		// generate samples //
@@ -556,8 +484,8 @@ int main()
 		for (uint8_t v = 0; v < TOTAL_VOICES - 1; v++) // all voices minus the last (sampler)
 		{
 			current_osc_sample = (osc_accumulator[v] += (osc_pitch[v] + lfo_output[v])) >> 9;
-			output_l[v] = osc_wavetable[0][v][current_osc_sample];
-			output_r[v] = osc_wavetable[1][v][current_osc_sample];
+			output_l[v] = osc_wavetable[v][0][current_osc_sample];
+			output_r[v] = osc_wavetable[v][1][current_osc_sample];
 		}
 		//~~~~~~~~~~~~~~~~~~~~~//
 
@@ -580,8 +508,8 @@ int main()
 		// stick the data in a .wav file
 		for (uint8_t v = 0; v < TOTAL_VOICES; v++)
 		{
-			fwrite (output_l+v, 2, 1, temp_files[v]); // L
-			fwrite (output_r+v, 2, 1, temp_files[v]); // R
+			channel_buffer_int[v][t]   = output_l[v]; // L
+			channel_buffer_int[v][t+1] = output_r[v]; // R
 		}
 
 		//=============//
@@ -621,13 +549,33 @@ int main()
 					if (env_vol_type[v] == 0)
 					{
 						osc_volume[v] = map(env_vol_tick[v], 0, env_vol_length[v], mmml_volume[v], 0);
-						update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
+						update_wavetable(
+							v,
+							osc_sample_1_l [v],
+							osc_sample_2_l [v],
+							osc_sample_1_r [v],
+							osc_sample_2_r [v],
+							osc_volume     [v],
+							osc_mix        [v],
+							osc_stereo_mix [v],
+							osc_phase      [v]
+						);
 						env_vol_tick[v]++;
 					}
 					else if (env_vol_type[v] == 1)
 					{
 						osc_volume[v] = map(env_vol_tick[v], 0, env_vol_length[v], 0, mmml_volume[v]);
-						update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
+						update_wavetable(
+							v,
+							osc_sample_1_l [v],
+							osc_sample_2_l [v],
+							osc_sample_1_r [v],
+							osc_sample_2_r [v],
+							osc_volume     [v],
+							osc_mix        [v],
+							osc_stereo_mix [v],
+							osc_phase      [v]
+						);
 						env_vol_tick[v]++;
 					}
 				}
@@ -637,7 +585,17 @@ int main()
 				if (env_wav_tick[v] <= env_wav_length[v])
 				{
 					osc_mix[v] = map(env_wav_tick[v], 0, env_wav_length[v], 0, 100);
-					update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
+					update_wavetable(
+						v,
+						osc_sample_1_l [v],
+						osc_sample_2_l [v],
+						osc_sample_1_r [v],
+						osc_sample_2_r [v],
+						osc_volume     [v],
+						osc_mix        [v],
+						osc_stereo_mix [v],
+						osc_phase      [v]
+					);
 					env_wav_tick[v]++;
 				}
 			}
@@ -684,51 +642,59 @@ int main()
 	{
 		printf("Processing channel %d: ", v);
 
-		// open again to read 
-		char filename[16];
-		sprintf (filename, "ch%d-temp", v);
-		temp_files[v] = fopen (filename, "r");
-
-		// create buffers w/ file size
-		int16_t *channel_buffer_int   = (int16_t*)malloc(TOTAL_SAMPLES * sizeof(int16_t));
-		float   *channel_buffer_float = (float*)malloc(TOTAL_SAMPLES * sizeof(float));
-		
-		fread(channel_buffer_int,TOTAL_SAMPLES,2,temp_files[0]);
+		// create temp buffers for processing
+		float *channel_buffer_float = (float*)malloc(TOTAL_SAMPLES * sizeof(float));
 
 		//=========== PROCESS FX ===========//
 
-		// convert int to float (to send to fv_process)
+		// convert int to float
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-			channel_buffer_float[i] = (float)channel_buffer_int[i] * channel_gain[v];
-
-		printf("Delay | ");
+			channel_buffer_float[i] = (float)channel_buffer_int[v][i] * channel_gain[v];
 
 		// process delay
-		delay_process(channel_buffer_float,TOTAL_SAMPLES,(uint32_t)delay_bank[channel_fx[v][1]][0],
-			delay_bank[channel_fx[v][1]][1],delay_bank[channel_fx[v][1]][2],(uint8_t)delay_bank[channel_fx[v][1]][3]);
+		if (channel_fx[v][1] > 0)
+		{
+			printf("delay | ");
 
-		printf("Reverb\n");
+			delay_process(
+				channel_buffer_float,
+				TOTAL_SAMPLES,
+				(uint32_t)delay_bank[channel_fx[v][1]][0] * 100,
+				(float)   delay_bank[channel_fx[v][1]][1] / 100.0,
+				(float)   delay_bank[channel_fx[v][1]][2] / 100.0,
+				(uint8_t) delay_bank[channel_fx[v][1]][3],
+				(float)   delay_bank[channel_fx[v][1]][4] / 100.0);
+		}
 
 		// process reverb
-		reverb_process(channel_buffer_float,TOTAL_SAMPLES,
-			reverb_bank[channel_fx[v][0]][0], reverb_bank[channel_fx[v][0]][1],
-			reverb_bank[channel_fx[v][0]][2], reverb_bank[channel_fx[v][0]][3],
-			reverb_bank[channel_fx[v][0]][4]);
+		if (channel_fx[v][0] > 0)
+		{
+			printf("reverb");
+
+			reverb_process(
+				channel_buffer_float,
+				TOTAL_SAMPLES,
+				(float)reverb_bank[channel_fx[v][0]][0] / 100.0,
+				(float)reverb_bank[channel_fx[v][0]][1] / 100.0,
+				(float)reverb_bank[channel_fx[v][0]][2] / 100.0,
+				(float)reverb_bank[channel_fx[v][0]][3] / 100.0,
+				(float)reverb_bank[channel_fx[v][0]][4] / 100.0);
+		}
+
+		printf("\n");
 
 		// merge with other channels
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
 			master_buffer_float[i] += channel_buffer_float[i];
 
 		// cleanup
-		free(channel_buffer_int);
 		free(channel_buffer_float);
-		fclose(temp_files[v]);
-		remove(filename);
 	}
+
+	//----------- EQ -----------//
 
 	printf("\nProcessing master EQ...\n");
 
-	// process filters
 	for(uint8_t i = 0; i < TOTAL_EQ_BANDS; i++)
 	{
 		for(uint8_t j = 0; j < TOTAL_EQ_PASSES; j++)
@@ -738,53 +704,44 @@ int main()
 		}
 	}
 
-	printf("Normalising track: ");
+	//------- normaliser -------//
 
-	// normaliser
-	int16_t loudest_sample;
-	float   multiplier;
-	float   divisor;
+	printf("Normalising track...\n\n");
+
+	float loudest_sample;
+	float current_sample;
+	float multiplier;
 	
 	for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
 	{
-		int16_t current_sample = fabs(master_buffer_float[i]);
-	
+		current_sample = fabs(master_buffer_float[i]);
 		if (current_sample > loudest_sample)
 			loudest_sample = current_sample;
 	}
-
-	if (loudest_sample < 32767.0)
-	{
-		printf("Quiet, needs boosting.\n");
-
-		multiplier = 32767.0 / loudest_sample;
-		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-			master_buffer_float[i] = master_buffer_float[i] * multiplier;
-	}
-	else
-	{
-		printf("Loud, needs quietening.\n");
-		divisor = loudest_sample / 32767.0;
-		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-			master_buffer_float[i] = master_buffer_float[i] * divisor;
-	}
-
-	// convert float to 16-bit for wave file export
+	
+	multiplier = 32767.0 / loudest_sample;
 	for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-		buffer_int[i] += (int16_t)master_buffer_float[i];
+		master_buffer_float[i] = master_buffer_float[i] * multiplier;
 
-	printf("Writing to output file...\n\n");
+	//--------------------------//
 
-	// write sample data to file
-	fwrite(buffer_int, sizeof(uint16_t), TOTAL_SAMPLES-1, output_wave_file);
+	// convert float to 16-bit for playback
+	int16_t *buffer_int = (int16_t*)malloc(TOTAL_SAMPLES * sizeof(int16_t));
 
-	printf("Successfully written! (Maybe, there's no error checking.)\n");
+	for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
+		buffer_int[i] = (int16_t)master_buffer_float[i];
+
+	free(master_buffer_float); // bye
 
 	// let's just see how long it took
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+	printf("Done! Took %.2f seconds to complete.\n\n", time_spent);
 
-	printf("Took %.2f seconds to complete.\n", time_spent);
+	printf("Building wave file...\n");
+	wave_export(buffer_int, TOTAL_SAMPLES);
+
+	free(buffer_int); // bye
 }
 
 //=================//
@@ -884,6 +841,12 @@ void mmml()
 						osc_tie_flag[v] = 1;
 						data_pointer[v]++;
 					}
+					// panning
+					else if (buffer2 == 7)
+					{
+						mmml_panning[v]  = buffer3;
+						data_pointer[v] += 2;
+					}
 					// channel end
 					else if (buffer2 == 15)
 					{
@@ -982,7 +945,17 @@ void mmml()
 
 							env_vol_tick[v] = 0;
 
-							update_wavetable(v,osc_sample_1_l[v],osc_sample_2_l[v],osc_sample_1_r[v],osc_sample_2_r[v],osc_volume[v],osc_mix[v],osc_stereo_mix[v],osc_phase[v]);
+							update_wavetable(
+								v,
+								osc_sample_1_l [v],
+								osc_sample_2_l [v],
+								osc_sample_1_r [v],
+								osc_sample_2_r [v],
+								osc_volume     [v],
+								osc_mix        [v],
+								osc_stereo_mix [v],
+								osc_phase      [v]
+							);
 						}
 					}
 					// trigger the sampler (last voice is always sampler)
