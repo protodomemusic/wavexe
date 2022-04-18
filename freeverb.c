@@ -12,7 +12,7 @@
  * 
  *******************************************************************************/
 
-#define NUMCOMBS        4
+#define NUMCOMBS        3
 #define NUMALLPASSES    2
 #define MUTED           0.0
 #define FIXEDGAIN       0.05
@@ -31,12 +31,12 @@ float comb_feedback    [TOTAL_CHANNELS][NUMCOMBS];
 float comb_filterstore [TOTAL_CHANNELS][NUMCOMBS];
 float comb_damp1       [TOTAL_CHANNELS][NUMCOMBS];
 float comb_damp2       [TOTAL_CHANNELS][NUMCOMBS];
-float comb_buf         [TOTAL_CHANNELS][NUMCOMBS][4096];
+float comb_buf         [TOTAL_CHANNELS][NUMCOMBS][2048];
 int   comb_bufsize     [TOTAL_CHANNELS][NUMCOMBS];
 int   comb_bufidx      [TOTAL_CHANNELS][NUMCOMBS];
 
 float allpass_feedback [TOTAL_CHANNELS][NUMALLPASSES];
-float allpass_buf      [TOTAL_CHANNELS][NUMALLPASSES][2048];
+float allpass_buf      [TOTAL_CHANNELS][NUMALLPASSES][1024];
 int   allpass_bufsize  [TOTAL_CHANNELS][NUMALLPASSES];
 int   allpass_bufidx   [TOTAL_CHANNELS][NUMALLPASSES];
 
@@ -114,10 +114,8 @@ void reverb_process(float *input_buffer, int input_length, float v_width, float 
 		allpass_feedback[1][i] = 0.5;
 	}
 
-	//------- set sample rate -------//
-
-	const int combs[]     = { 1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617 };
-	const int allpasses[] = { 556, 441, 341, 225 };
+	const int combs[]     = { 1116, 1188, 1277, };
+	const int allpasses[] = { 556, 441, };
 
 	// init comb buffers
 	for (int i = 0; i < NUMCOMBS; i++)

@@ -4,18 +4,22 @@
 *
 *  NOTES:        A simple wavetable synth which outputs
 *                directly into a 16-bit stereo WAV file.
+*                If you're on Linux, you can play it back in
+*                software buy uncommenting the 'LINUX'
+*                definition below.
+* 
 *                Sequencing powered by:
 *                https://github.com/protodomemusic/mmml
-*                Reverb powered by:
-*                https://github.com/protodomemusic/cverb
 *
 *                TO DO:
 *                - MIDI -> MMML conversion (doing it by hand
 *                  is honestly exhausting).
-*                - Make volumes ('v' commands) more dynamic.
+*                - Make volumes ('v' commands) more dynamic
+*                  (sine stuff like you did for stereo).
 *                - Control of FX in MMML.
 *                - More efficient filtering/EQ.
 *                - Portamento.
+*                - Real-time playback?
 *
 *                BUGS:
 *                - Find and eliminate annoying DC-offset. It's
@@ -32,6 +36,8 @@
 *                Remaster: 14th February 2022
 **************************************************************/
 
+// #define LINUX
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,10 +46,17 @@
 #include <time.h>
 #include <math.h>
 
-#define PLAY_TIME        24     // duration of recording in seconds
+#define PLAY_TIME        130    // duration of recording in seconds
 #define SAMPLE_RATE      44100  // cd quality audio
 #define TOTAL_CHANNELS   2      // stereo file
 #define TOTAL_SAMPLES    (PLAY_TIME * TOTAL_CHANNELS) * SAMPLE_RATE
+
+// currently only linux supports live playback via the ALSA library
+// make sure to do: apt-get install libasound2-dev
+#ifdef LINUX
+	#include <alsa/asoundlib.h>
+	#include "alsa-playback.c"
+#endif
 
 #include "wave-export.c"
 #include "freeverb.c"
@@ -75,7 +88,7 @@ float eq_data[TOTAL_EQ_BANDS][FILTERS_PER_BAND * 2] =
 // band 1
 	{ 0.2, 4800,  0.2, 200000 }, // boost mids
 // band 2
-	{ 0.0, 0,     0.2, 2000 }, // sizzle
+	{ 0.0, 0,     0.2, 2000 },   // sizzle
 };
 
 const uint16_t notes[TOTAL_NOTES] =
@@ -101,7 +114,6 @@ uint8_t  mod_counter = MOD_SPEED;
 uint32_t osc_accumulator   [TOTAL_VOICES - 1];
 uint16_t osc_pitch         [TOTAL_VOICES - 1];
 uint16_t osc_target_pitch  [TOTAL_VOICES - 1];
-uint16_t osc_tie_flag      [TOTAL_VOICES - 1];
 
 // wavetable variables
 float    osc_volume        [TOTAL_VOICES - 1];
@@ -148,6 +160,7 @@ uint16_t mmml_length       [TOTAL_VOICES];
 uint16_t mmml_note         [TOTAL_VOICES];
 int8_t   mmml_transpose    [TOTAL_VOICES];
 int8_t   mmml_panning      [TOTAL_VOICES];
+int8_t   mmml_tie_flag     [TOTAL_VOICES];
 uint8_t  loops_active      [TOTAL_VOICES];
 uint8_t  current_length    [TOTAL_VOICES];
 uint16_t data_pointer      [TOTAL_VOICES];
@@ -203,7 +216,7 @@ float map(float x, float in_min, float in_max, float out_min, float out_max)
  *      0: L/R <---> 50: Mono <---> 100: R/L
  */
 
-#define TOTAL_INSTRUMENTS     19
+#define TOTAL_INSTRUMENTS     14
 #define INSTRUMENT_PARAMETERS 16
 
 uint8_t instrument_bank [TOTAL_INSTRUMENTS][INSTRUMENT_PARAMETERS] =
@@ -217,37 +230,27 @@ uint8_t instrument_bank [TOTAL_INSTRUMENTS][INSTRUMENT_PARAMETERS] =
 	{  10,9, 8,8,     20, /**/  0,120,  /**/  0,0,0,   /**/  0,0,0,0,       /**/  35,0   },
 // 2: soft square
 	{  7,7, 6,3,     100, /**/  0,120,  /**/  0,0,0,   /**/  11,1,2,120,    /**/  38,20  },
-// 3: glass
-	{  10,11, 0,0,    10, /**/  0,80,   /**/  0,0,0,   /**/  12,1,2,56,     /**/  40,0   },
-// 4: plucked string
+// 3: plucked string
 	{  12,12, 8,8,    10, /**/  0,200,  /**/  0,0,0,   /**/  0,0,0,0,       /**/  40,30  },
-// 5: thin rectangle
-	{  5,5, 4,4,     100, /**/  0,100,  /**/  2,4,1,   /**/  14,1,0,100,    /**/  50,0   },
-// 6: soft epiano
-	{  8,8, 0,0,     200, /**/  0,200,  /**/  0,0,0,   /**/  14,1,2,100,    /**/  50,0   },
-// 7: bassoon-ish
-	{  12,12, 10,10, 100, /**/  0,200,  /**/  0,0,0,   /**/  0,0,0,0,       /**/  50,0   },
-// 8: popcorn
+// 4: popcorn
 	{  2,1, 0,0,       3, /**/  0,40,   /**/  2,1,1,   /**/  0,0,0,0,       /**/  35,0   },
-// 9: hyper harpsichord
+// 5: hyper harpsichord
 	{  10,10, 6,3,    10, /**/  0,50,   /**/  0,0,0,   /**/  14,1,0,200,    /**/  20,0   },
-//10: tom/kick
+// 6: tom/kick
 	{  12,10, 0,0,     1, /**/  0,4,    /**/  3,2,24,  /**/  0,0,0,0,       /**/  40,0   },
-//11: drop sfx #1 - sounds good at o5
+// 7: drop sfx #1 - sounds good at o5
 	{  12,6, 11,10,    1, /**/  0,80,   /**/  3,15,72, /**/  60,126,12,0,   /**/  43,0   },
-//12: drop sfx #2 - sounds good at o5
+// 8: drop sfx #2 - sounds good at o5
 	{  3,6, 9,8,     200, /**/  0,50,   /**/  3,10,72, /**/  200,100,12,0,  /**/  62,0   },
-//13: rise sfx #1 - sounds good at o5 or o6
+// 9: rise sfx #1 - sounds good at o5 or o6
 	{  10,9, 11,11,   10, /**/  1,100,  /**/  4,20,48, /**/  200,100,12,0,  /**/  1,0    },
-//14: rise sfx #2 - sounds good at o6
+//10: rise sfx #2 - sounds good at o6
 	{  3,6, 8,9,      10, /**/  1,100,  /**/  4,18,48, /**/  100,100,5,0,   /**/  60,0   },
-//15: 5th saw2sine
-	{  14,14, 13,13, 200, /**/  0,150,  /**/  2,1,1,   /**/  0,0,0,0,       /**/  50,0   },
-//16: sine swell
+//11: sine swell
 	{  0,0, 0,0,     255, /**/  1,90,   /**/  0,0,0,   /**/  0,0,0,0,       /**/  1,120  },
-//17: reverse piano
+//12: reverse piano
 	{  9,9, 3,7,      50, /**/  1,90,   /**/  0,0,0,   /**/  14,10,0,35,    /**/  30,50  },
-//18: soft pad
+//13: soft pad
 	{  8,9, 0,0,     255, /**/  1,255,  /**/  0,0,0,   /**/  11,1,0,255,    /**/  10,127 },
 //--------------------------------------------------------------------------------------//
 };
@@ -276,21 +279,21 @@ uint8_t reverb_bank [TOTAL_REVERB_PRESETS][TOTAL_REVERB_PARAMETERS] =
 #define TOTAL_DELAY_PRESETS     5
 #define TOTAL_DELAY_PARAMETERS  5
 
-uint16_t delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
+uint8_t delay_bank [TOTAL_DELAY_PRESETS][TOTAL_DELAY_PARAMETERS] =
 {
 //-------------------------------------------------------//
-//  offset /**/ feedback /**/ spread /**/  dir  /**/ mix //
+//  offset /**/ feedback /**/ spread /**/  dir /**/  mix //
 //-------------------------------------------------------//
 // 0: no delay
-	{    0, /**/      0, /**/     0, /**/    0, /**/   0 },
+	{   0, /**/      0, /**/     0, /**/    0, /**/   0 },
 // 1: super subtle delay left
-	{  140, /**/     99, /**/    20, /**/    1, /**/   8 },
+	{ 140, /**/     99, /**/    20, /**/    1, /**/   8 },
 // 2: super subtle delay right
-	{  140, /**/     99, /**/    20, /**/    0, /**/   8 },
+	{ 140, /**/     99, /**/    20, /**/    0, /**/   8 },
 // 3: classic stereo echo
-	{  280, /**/     40, /**/    80, /**/    0, /**/  40 },
+	{ 255, /**/     40, /**/    80, /**/    0, /**/  40 },
 // 4: huge delay
-	{  280, /**/     99, /**/    20, /**/    1, /**/  50 },
+	{ 255, /**/     99, /**/    20, /**/    1, /**/  50 },
 //-------------------------------------------------------//
 };
 
@@ -302,30 +305,30 @@ uint8_t channel_fx [TOTAL_VOICES][TOTAL_FX] =
 // reverb /**/ delay //
 //-------------------//
 // channel 0
-	{  3, /**/   1 },
+	{  2, /**/   1 },
 // channel 1
-	{  3, /**/   2 },
+	{  2, /**/   2 },
 // channel 2
-	{  3, /**/   1 },
+	{  2, /**/   1 },
 // channel 3
-	{  3, /**/   3 },
+	{  2, /**/   2 },
 // channel 4
-	{  1, /**/   0 },
+	{  0, /**/   0 },
 // channel 5
-	{  1, /**/   0 },
-// channel 6
 	{  4, /**/   4 },
+// channel 6
+	{  3, /**/   3 },
 // channel 7
 	{  1, /**/   0 },
 //-------------------//
 };
 
-float channel_gain [TOTAL_VOICES] =
+uint8_t channel_gain [TOTAL_VOICES] = // (in percentage - it's divided by 100 later on)
 {
 //----------------------------------------------------------------------------//
-//  0   /**/  1   /**/  2   /**/  3   /**/  4   /**/  5   /**/  6   /**/  7   //
+//   0  /**/   1  /**/   2  /**/   3  /**/   4  /**/   5  /**/   6  /**/   7  //
 //----------------------------------------------------------------------------//
-   1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.0, /**/ 1.4, /**/ 0.6, /**/ 1.0,
+   110, /**/ 100, /**/ 100, /**/ 100, /**/ 140, /**/  70, /**/  90, /**/  90,
 //----------------------------------------------------------------------------//
 };
 
@@ -649,7 +652,7 @@ int main()
 
 		// convert int to float
 		for (uint32_t i = 0; i < TOTAL_SAMPLES; i++)
-			channel_buffer_float[i] = (float)channel_buffer_int[v][i] * channel_gain[v];
+			channel_buffer_float[i] = (float)channel_buffer_int[v][i] * ((float)channel_gain[v]/100);
 
 		// process delay
 		if (channel_fx[v][1] > 0)
@@ -740,6 +743,12 @@ int main()
 
 	printf("Building wave file...\n");
 	wave_export(buffer_int, TOTAL_SAMPLES);
+
+	#ifdef LINUX
+		// time to listen to the results (on linux only)
+		printf("It's playback time!\n\n");
+		alsa_playback(buffer_int, TOTAL_SAMPLES);
+	#endif
 
 	free(buffer_int); // bye
 }
@@ -838,7 +847,7 @@ void mmml()
 					// tie
 					else if (buffer2 == 6)
 					{
-						osc_tie_flag[v] = 1;
+						mmml_tie_flag[v] = 1;
 						data_pointer[v]++;
 					}
 					// panning
@@ -896,7 +905,7 @@ void mmml()
 					{
 						mmml_note[v] = buffer1;
 
-						if (osc_tie_flag[v] == 0)
+						if (mmml_tie_flag[v] == 0)
 						{
 							// reset the lfo
 							lfo_amplitude[v] = 0;
@@ -911,7 +920,7 @@ void mmml()
 							osc_pitch[v] = notes[(mmml_note[v]+(mmml_octave[v]*12)) + mmml_transpose[v]];
 						}
 						// sweep mode 1 sets a target pitch to fall to
-						else if (swp_type[v] == 1 || (swp_type[v] == 3 && osc_tie_flag[v] == 0))
+						else if (swp_type[v] == 1 || (swp_type[v] == 3 && mmml_tie_flag[v] == 0))
 						{
 							osc_pitch[v] = notes[(mmml_note[v]+(mmml_octave[v]*12)) + mmml_transpose[v]];
 
@@ -922,7 +931,7 @@ void mmml()
 								osc_target_pitch[v] = notes[mmml_note[v]+(mmml_octave[v]*12) - swp_target[v]];
 						}
 						// sweep mode 2 sets a target pitch to rise to
-						else if (swp_type[v] == 2 || swp_type[v] == 4 && osc_tie_flag[v] == 0)
+						else if (swp_type[v] == 2 || swp_type[v] == 4 && mmml_tie_flag[v] == 0)
 						{
 							// prevent underflow
 							if ((int16_t)((mmml_note[v]+(mmml_octave[v]*12) - swp_target[v])) + mmml_transpose[v] < 0)
@@ -933,7 +942,7 @@ void mmml()
 							osc_target_pitch[v] = notes[(mmml_note[v]+(mmml_octave[v]*12))  + mmml_transpose[v]];
 						}
 
-						if (osc_tie_flag[v] == 0)
+						if (mmml_tie_flag[v] == 0)
 						{							
 							// reset the waveform mix
 							osc_mix[v] = 0;
@@ -961,7 +970,7 @@ void mmml()
 					// trigger the sampler (last voice is always sampler)
 					else if (v == TOTAL_VOICES - 1)
 					{
-						if (osc_tie_flag[v] == 0)
+						if (mmml_tie_flag[v] == 0)
 						{
 							sample_current = (buffer1 - 1) % TOTAL_SAMPLER_SAMPLES;
 
@@ -973,8 +982,8 @@ void mmml()
 						}
 					}
 
-					if (osc_tie_flag[v] == 1)
-						osc_tie_flag[v] = 0;
+					if (mmml_tie_flag[v] == 1)
+						mmml_tie_flag[v] = 0;
 				}
 				// rest
 				else
@@ -992,7 +1001,7 @@ void mmml()
 						sample_mute = 1;
 
 					// clear tie flag here too
-					osc_tie_flag[v] = 0;
+					mmml_tie_flag[v] = 0;
 				}
 
 				// note duration value

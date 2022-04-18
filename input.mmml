@@ -1,96 +1,622 @@
 %===================================================================%
-% TITLE      : wavexe test
-% COMPOSER   : Blake 'PROTODOME' Troise
-% PROGRAMMER : " " "
-% DATE       : 14/02/22
-% NOTES      : Quick file to test/document wavexe features.
-%              Build me using the latest version of this:
-%              github.com/protodomemusic/mmml/tree/master/compiler
+% TITLE       : Onion Rings
+% COMPOSER    : Blake 'PROTODOME' Troise
+% PROGRAMMER  : " " "
+% DATE        : 04/04/2022
+% CHANNELS    : 8
+% MMML-TARGET : wavexe
+% NOTES       : Written for Revision Party 2022. Came second place
+%               in the executable music cateogory! An 8 channel jazz-
+%               fusion homage to my third favourite torus snack. The
+%               list goes:
+%                 1. Doughnuts
+%                 2. Bagels
+%                 3. Onion Rings <-- the song is dedicated to this
+%                 4. Cheerios
+%                 5. Polos
+%                 6. etc etc
 %===================================================================%
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 1 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o2 i17 K4 r1 p-40
-v8 c2c v7 c2c v6 c2c v5 c2c v4 c2c v3 c2c v2 c2c v1 c2c
-r1r
+% keyboard voice 1
 
-[255 r1] % shh
+@ r4 o4 i5 p-20 K-1
+
+% intro
+r2 v8 g8 > d+32.r16r64 < d+32.r16r64f8.&f32. r64 g+32a+8.&a+64
+r64 d+1&d+16.&d+64 r64
+i12 v8 o4 g1
+
+% section 1
+i5 m6
+v6 o4 g8&g32.r8.r64f8.&f32.r4r64c8r4.d+16r8.f32g16.d+32.r16r64c16r8.
+d+16r2r8.d+8 r8d+8r2e8 r8
+m12 m17
+
+% section 2
+m23
+o4 v6 g+8g64v5f+64v4f64v3e64v2d+64v1d64r8r32v6
+m47r4
+r16.r64e16r16e16r8d64r32.
+d64r32.d64r32.d64r32.c+32d8&d32 r16
+m23
+v6 o4 g+8&g64&v5f+64&v4f64&v3e64&v2d+64&v1d64r8r32v6d64r32.d64r32.d64r32.d64r32.c+64r16.r64d64r32.e64r4
+r32.<a8.&a32.r64a+8.&a+32.r64b8.&b32.r4
+r64v7a+32&v6>c2.&c16&c64 r64
+i12 v8 o4 g1
+
+% section 1 solo
+i5 m6
+v7 o4 g8&g32.r8.r64f8.&f32.r4r64c8  r4.d+16r8.<a32a+16.b32.r16r64>c16r8.
+d+16r2r8.d+8  r8d+8r4.e4.
+m12 m17 r2
+
+% section 2 reprise
+m23
+v6 o4 g+8&v6g64&v5f+64&v4f64&v3e64&v2d+64&v1d64r8r32v7
+m47 r8r32.r1
+m23
+v7 o4 e4r8d4r4c+32d+8.&
+d+32r4e4.&e16 r8.
+
+% section 3
+m32 m37 m32
+v6 o4 d+64r32.e32.r16r64c+32r16.e32r8r32e32r16.g32r32a32r32g32.r64e32r32d16d+32r8
+r32e16r4e32r32e64r4r16.r64<f+8
+m37
+v6 o4 g64&e64&d64&<b64&g+64&e64&d64&<b64v7>>e16r8g+32r8r32e64r8r32.e64r8r32.f16r16
+e16r4e32r16.e16r4r32.g8&g64v4f64v3d64v2<b64v1g+64
+m32
+v6 o4 e16r2r8.d+4
+m32 r1 m32 m37
+
+% ending
+v6 o4 r8 c4.c+4. v8 < d64&d+64&e64&f64&f+64&g64&g+64&a64
+v6 a+8.&a+32.r64b8.&b32.r64>c8.&c32.r64c+8.&c+32.r2
+r64e4r4
+
+i13 v2 >c+1&c+2
+
+
+% sync
+% i0 o3 r16 c16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 2 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o3 i17 K4 r1 p40
-v8 e2e v7 e2e v6 e2e v5 e2e v4 e2e v3 e2e v2 e2e v1 e2e
-r1r
+% keyboard voice 2
 
-[255 r1] % shh
+@ r4 o4 i5 p20 K-1
+
+% intro
+r2 v6 d+8&d+32. r8.r64 d8.&d32. r64 c+8.&c+32. r64 < a+32 > c1&c16&c64 r64
+i12 v8 o4 d+1
+
+% section 1
+i5 m7
+v6 o4 d+8&d+32.r8.r64d8.&d32.r4r64<a64a+16.&a+64 r4.>c16r4.r16<a16r8.
+>c16r2r8.<a+8 r8a+8r2b8 r8
+m13 m18
+
+% section 2
+m24
+o4 v6 d8r4<b64r32.b64r32.b64r32.b64r32.b64r16.r64b64r32.b64r4
+r16.r64>c+16r16d16r8<b64r32.b64r32.b64r32.b64r32.a8. r16
+m24
+m48 o3 r4
+r32. f8.&f32.r64f+8.&f+32.r64g8.&g32.r4
+r64g+2.&g+16.&g+64 r64
+i12 v8 o4 d+1
+
+% section 1 solo
+i5 m7
+v6 o4 d+8&d+32.r8.r64d8.&d32.r4r64<a64a+16.&a+64  r4.>c16r4.r16<a16r8.
+>c16r2r8.<a+8  r8a+8r4.b4.
+m13 m18 r2
+
+% section 2 reprise
+m24
+m48 o3 r8r32.r1
+m24
+v7 o3 b4r8a+4r4a+4
+r4>c+4.&c+16 r8.
+
+% section 3
+m33 m38 m33
+v6 o4 c+64r32.d32.r16r64<b32r16.b32r8r32>d32r4.r32<a32r8
+r32b16r4>d32r32d64r4r16.r64d+8
+m38
+v6 o4 r8d16r8d64r8r32.d64r8r32.d64r8r32.<b16r16
+>c+16r4<a+32r16.b16r4r32b8&b32 r16
+m33
+v6 o4 d16r2r8.c4
+m33 r1 m33 m38
+
+% ending
+v6 o3 r8a+4.b4.r8  f+8.&f+32.r64g8.&g32.r64g+8.&g+32.r64a8.&a32.r2
+r64b4r4
+
+i13 v2 >a+1&a+2
+
+% sync
+% i0 o3 r16 e16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 3 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o3 i17 K4 r1
-v8 d2d v7 d2d v6 d2d v5 d2d v4 d2d v3 d2d v2 d2d v1 d2d
-r1r
+% keyboard voice 3
 
-[255 r1] % shh
+@ r4 o3 i5 p-40 K-1
+
+% intro
+r2 v6 a+8&a+32. r8.r64 a+8.&a+32. r64 a+8.&a+32. r64 g+1&g+16.&g+64 r64
+i12 v8 o4 c1
+
+% section 1
+i5 m8
+v6 o3 a+8&a+32.r8.r64a+8.&a+32.r4r64g8 r4.a+16r4.r16f16r8. a16r2r8.g+8
+r8g+8r2a8 r8
+m14 m19
+
+% section 2
+m25
+v6 o3 b8r1  r16g16r16g+16r4.g8. r16
+m25
+v6 o3 b8r1  c8.&c32.r64c+8.&c+32.r64d8.&d32.r4  r64d+2.&d+16.&d+64 r64
+i12 v8 o4 c1
+
+% section 1 solo
+i5 m8
+v6 o3 a+8&a+32.r8.r64a+8.&a+32.r4r64g8  r4.a+16r4.r16f16r8.  a16r2r8.g+8
+r8g+8r4.a4.
+m14 m19 r2
+
+% section 2 reprise
+m25
+v6 o3 b8 r1r2.r8
+m25
+v7 o3 g4r8g4r4f+4
+r4a4.&a16 r8.
+
+% section 3
+m34 m39 m34
+v6 o3 a+64r32.b32.r16r64a32r4r32b32r4.r32f+32r8
+r32g16r4b32r32b64r4r16.r64>c8
+m39
+v6 o3 r8g+16r4r16b64r8r32.b64r8r32.g+16r16
+a+16r4.a16r4r64a8&a32. r16
+m34
+v6 o3 b16r2r8.g+32&a+8.&a+32
+m34 r1 m34 m39
+
+% ending
+v6 o3 r8e4.f4.r8
+c+8.&c+32.r64d8.&d32.r64d+8.&d+32.r64e8.&e32.r2
+r64g+4r4
+
+i13 v2 >f+1&f+2
+
+% sync
+% i0 o3 r16 g16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 4 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4
-o6 i13 v7 c1
-o3 i17 K4
-v8 g2 g2
-v7 g2 g4&g16 o4 i8 p-99 b16 p0 g16 p90  e16 p0 o3 i17
-v6 g2 g2
-v5 g2 g4&g16 o4 i3 p99  g16 p0 e16 p-99 c16 p0 o3 i17
-v4 g2 g2
-v3 g2 g4&g16 o4 i8 p-99 b16 p0 g16 p99  e16 p0 o3 i17
-v2 g2 g2
-v1 g2 g4&g16 o4 i3 p99  g16 p0 e16 p-99 c16 p0 o3 i17
-r1r
+% keyboard voice 4
 
-[255 r1] % shh
+@ r4 o3 i5 p40 K-1
+
+% intro
+r2 v6 f8&f32. r8.r64 f8.&f32. r64 e8.&e32. r64 d+1&d+16.&d+64 r64
+i12 v8 o3 g+1
+
+% section 1
+i5 m9
+v6 o3 f8&f32.r8.r64f8.&f32.r4r64d+8 r4.g16r4.r16d+16r8. f16r2r8.f8 r8f8r2f+8 r8
+m15 m20
+
+% section 2
+m26
+v6 e8r1  r2r8e8. r16
+m26
+v6 o3 e8r1  <g8.&g32.r64g+8.&g+32.r64a8.&a32.r4  r64a+2.&a+16.&a+64 r64
+i12 v8 o3 g+1
+
+% section 1 solo
+i5 m9
+v6 o3 f8&f32.r8.r64f8.&f32.r4r64d+8  r4.g16r4.r16d+16r8.  f16r2r8.f8  r8f8r4.f+4.
+m15 m20 r2
+
+% section 2 reprise
+m26
+v6 o3 e8 r1r2.r8
+m26
+v7 o3 c4r8c4r4c+4
+r4<b4.&b16 r8.
+
+% section 3
+m35 m40 m35
+v6 o3 f+64r32.g32.r16r64f+32r32<a64r16.r64>g64r32.d32r16.d32r4r16.<b32r8
+r32>e16<b64r16.r64>b64r32.<a64r32.>d32r32g64r32.d32r32e64r16.r64<b64r32.>>g64r32.<g+32a+16.
+m40
+v6 o3 r8d16r8.<b64r32.>d32r32g+64r32.d32r32e64r32.g+64r32.<b64r16.r64>c+16<g64r32.
+>f+16r16<a+64r8.r32.a+64r32.>f+16r4f+8. r16
+m35
+v6 o3 g16r2r8.f+4
+m35
+i1 v8 o3 a+32.a32&g32.e64r32.a32b16.e64r32.>e16<e32.r64g32.r64g+64r32.a32.r64
+g16g+32a32e32.r64<b32.r64g64 r32.
+i5 m35 m40
+
+% ending
+v8 o4 g64&e64&d64&<b64&g+64&e64&d64&<b64 v6 a+4.b4.r8
+g+8.&g+32.r64a8.&a32.r64a+8.&a+32.r64b8.&b32.r2
+r64>e4r4
+
+i13 v2 >d+1&d+2
+
+% sync
+% i0 o3 r16 g16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 5 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o2 i17 K4 r1
-v8 b2b v7 b2b v6 b2b v5 b2b v4 b2b v3 b2b v2 b2b v1 b2b
-r1r
+% bass
 
-[255 r1] % shh
+@ r4 i0 o2 K-1
+
+% intro
+r2 v8 g8 > d+32. r16r64 < d+32 r16. f8
+a+64 r16.r64 a32 a+16. e64 r16.r64 < a32a+2.&a+16.
+b32&>c32&d32&d+32&f32&g32&g+32&a
+m2
+
+% section 1
+m10
+v8 o2 d+8 > d+32&f32&g32&a+32&d+32r16. < d8a+64r16.r64 > c32&d32&f32&d32<a+16r16c8
+r8>a+32&>c16.<d+32&f16r32<d+16 m42
+m16 m21
+
+% section 2
+m27
+v8 o2 m43 e16
+d16&c+16d32r32c+16d64r32.e32.r64g64r32.<e64r32.>g16g+64r32.<e16d16g16&g+16>e64r32.<g+64 r32.
+m27
+v8 o2 m43 e16
+a64&g+64&f+64&e64&d+64&c+64&<b64&a64g8&>g32.r16r64<g+8&>g+64r16.r64<a16.&a64r64f64r16.r64>a16&b32.r64
+a32.r64<f64r32.g+32&a+2&a+16.&b32&>c32&d32&d+32&f32&g32&g+32&a32
+m2
+
+% section 1 solo
+m10
+v8 o2 d+8&d+64r8.r32.d8a+64r4r16.r64c8
+r4<b8>c16 m42
+m16 m21 r2
+
+% section 2 reprise
+m27
+v8 o2 m43 a16
+>g16&e32.r64<a32&b32&a32.r64g32&g+32e64r32.d32.r64c+32.r64e64r32.<g32.r64>g64r32.<b64r32.>d16&>d32.r64<d+16&>d+32.r64
+m27
+v8 o2 c8r8c64r32.c64r32.c16&c64r32.a16&a+16>g16<c16b16&>c16<c+8
+>f+64r32.<c+64r32.>c+16&d+16<e32&f+32c+16<a32&b8.&b32>a16&b16f+16<b64r32.>c+16&e32 r32
+
+% section 3
+i3 m36 m41 m36
+v8 o2 g16&a32.r64g16&a32.r64>d64r32.<g16&e32r32>d16&<a32r32e32r32>g32r32a32r32g32&a64&g64e32r32d16&d+32r32
+o2 e8r16e32r32a64r32.e32r16.g16&a32r32>e32r16.<b64r32.e16d32r16.b64 r32.
+m41
+v8 o3 m44 e32r16.<b64r32.e64r32.>g64r32.c+16>c+32.r64
+<<f+8r16f+32r32>f+64r32.<f+32r16.b16&>c+32r32e32r32b32r32e64r32.<b8. r16
+m36
+v8 o2 e32.r64>b64r32.>e64r32.<a64r32.>g16&a16&<a32r32d16&e32r32<e16&g32r32
+d32r32f16&>d16&<d+32r32>d+32 r32
+m36
+v8 o2 a+32.&a32&g32.e64r32.a32&b16.e64r32.>e16<e32.r64g32.r64g+64r32.a32.r64
+g16g+32&a32e32.r64<b32.r64g64 r32.
+m36 m41
+
+% ending
+v8 o3 m44 f32r16.c64r32.<f64r32.>g+64r32.>c+64c64<a+64g+64g64f64d+64c+64
+<g+8>g+32.r16r64<a8&a64r16.r64a+16.&a+64r64f+64r16.r64a32b8.&b64r2
+r64e4r4
+
+i13 v2 >>b1&b2
+
+
+% sync
+% i0 o3 r16 b16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 6 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4 o1 i4 K4 r1
-v8 m2 v7 m2 v6 m2 v5 m2 v4 m2 v3 m2 v2 m2 v1 m2
-r1r
+% rises/falls/sfx
 
-[255 r1] % shh
+@ r4 i2 o3 K-1
+
+% intro
+r2 v7 d32d+16.a+32. r16r64 < a+32.r16r64 > d8.&d32. r64 < a+32
+> c+8.&c+64 r64 < a+32 > c2 <
+v6b64&v4a64&g64&v3f64&v2e64&v1d
+
+% swell
+i9 v6 o6 d+1&d+2
+
+% section 1
+m45
+
+% section 2
+i7 o5 [2 d+1&d rr ]
+i9 o6 d+1&d1
+
+% section 1 solo
+m45
+
+r2
+
+% section 2
+i7 o5 d+1&d  rr  sd+1&d
+i9 v6 o6 c1&c1
+
+% section 3
+i7 o5 d+1&d [6 r1 ] d+1&d [4 r1 ]
+
+% ending
+i9 v6 o6 d+1&d+1 r2 i8 o5 c2
+
+%i13 v2 o4 g+1&g+2
+r1&r2
+
+% sync
+% i0 o4 r16 d16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 7 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ r4
-o6 i14 v7 c1
-o6 i8 K4 v8 m3 v6 m3 v4 m3 v2 m3 v1 m3
-r1r
+% arp synth and lead
 
-[255 r1] % shh
+@ r4 i4 K-1
+
+% intro
+r2r2.r8
+v8 m1 v4 m1 v2 m1 v1 m1 r4.
+m29
+
+% section 1
+i4
+[3 [2 m5 ] m46 ]
+   [2 m5 ] K0 m46
+[4 [2 m5 ] m46 ]
+
+% section 2
+v8 K-1
+m30 r1 r1 m30 r1
+r8 v8 o4 g+32a8.&a64r64a+8.e32a32b8.&b32.r4r64
+b32>c16.o6 [4 c32&<g+32&d+32&c32&<g+32&d+32& ]
+m29
+
+% section 1 solo
+i2 v8 o4 r8 a+16&>c16d+16r16g32&g+16r32g32&g+32&g32r32d+32r16.<a+16.r32>d+4&
+f16r16<a+32&>c16.&<g+32&a+16.&d+32&f16.&d+16&d64&v7c+64&c64&v6<b64&v5a+64&v4a64&g+64&v3g64r8.
+v8>a16&>d+16<a16&g+16g32.r64>d+16<a32r32f16d+16&d32.&c+32.&c32.&<b32.&a+8>d+16&d+64r8
+r32.d+32&f16r8r32g16g+16a+32.&>d32&f+32.a+32.>c+32.f32d+16d16f16&f+32&f32
+c+32&d+16.<g+32&a+16r64g+16r16r64f+16&g8r16f+16&f16&d+16<a+16r32g+32.&a32.&
+g+32.f+32.r64d+32.r64c+16&f32.&g32<a+16>d+32.r8.r64<g+64&a+16.&a+64b8>c8
+<b64&v7a+64&v7a64&v5a+64&v4b64&v5>c64&v6c+64&v8d64d+32f16.c8d+16r8.<g+64&a+16.&a+64b16.&b64r64>c8&
+v7<b64&v6a+64&v6a64&v4g+64&v3g64&v2f+64r32v8>f32&g16&g64f+64<b32&>c16.d+16r8.<f+16g+16b32&>c+32&d+32&f+32&a32&b32&>c+32&d+32
+v7g+8>e32.r16r64<e32.r16r64f+8.&f+32.r64a32b16.r8d+32e8.&
+e64&v6d+64&v5c+64&<b64&v5a64&v4g+64&v3f+64v5>e64&v6f64&v8f+64g32.e32.&g32d32.&<b32.>d32<g32.&a32.f32g32f32d32<b32>c32.&c+32&d64&d+32v7e16r8.
+e16r8.c+16r8.<b16r8.>c+8
+r8e16.&e64&f64&f+32r16.e16r16>d+32&e16.<<b16r16f+8b16r8.
+v8>b32.r32>e32.<b16r64g+32.e16r64c32.&<b16r64>d+32.r64f+32.r64b32.r64>d+32.r32f+32.&c+32.r64<a32.
+g32.r64f32r32e16g+16e16g32e32&c+32r32d+32.r64e8g32&g+16r32e16&e64r32.c+16&c+64r8.
+e16&e64r32a32&b16&b64r64a16.&a64r64g32.r64g+32.r64a16r64g32.&g+32&a64&g+32e32.<b16.r8
+r32b16.r2r32b16. r8r32
+
+% tom fill
+i6 v3 o4 a64v4av5av6ar32v8 a16r32a16<a64a32.r32a16r64<a16&a64
+
+% section 2 reprise
+i4 m30 r1 r1 m30
+v7 [3 o5 e32&<b32&g32&c32& ] r0 [4 o5 d32&<a+32&g32&c32& ] r0 [4 o5 d+32&<a+32&f+32&c+32& ] r0 [5 o5 e32&c+32&<a32&<b32& ]
+[15 r1 ]
+
+v8 o4 a32a+8.&a+64r64b8.f32a+32>c8.&c32.r64c+8.&c+64r2
+r32.e4v7d+64&v6d64&v4c+64&v3c64&v2<b64&v1a+64r8r32
+
+i13 v2 <e1&e2
+
+% sync
+% i0 o4 r16 a16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-% CHANNEL 8 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-@ t52 r4 o3 r1
-v8 m1 v7 m1 v6 m1 v5 m1 v4 m1 v3 m1 v2 m1 v1 m1
-r1r
+% sampler/drums
 
-[255 r1] % shh
+@ t43 r4
+
+% intro
+o4 v1f+64v2f+v3f+f+v4f+v5f+v6f+v7f+v8 o3 c8d64d16.&d64
+>f16<f16c8r8>f+8<c8
+r8c8v2>f+64v4f+64v3f+64v4f+64v5<f+64v6f+64v6f+64v7f+64v8d64d16.&d64  
+v6>f+8v4f+16v8g16<c+8v6>f+16f+16
+v8f8 < f8c8v4 > f+64v3f+f+v4f+f+v5f+v6f+f+
+m28
+
+% section 1
+[2 m3 m4 m3 m11 ]
+
+% section 2
+[7 m22 ]
+v1a64v2a64v3a64v4a64v5g+64v6g+64g+64v7g+64v8c8v7>f+16f+16v8<c8
+v6>f+16f+16v8f16f16<f8c8
+v2>f+64v3f+64f+64v4f+64f+64v5f+64v6f+64f+64v7<d64v8d16.&d64
+f+8v4>f+8v6f+8<f+8>f+8v3f+8
+m28
+
+% section 1 solo
+[2 m3 m4 m3 m11 ]
+
+% tom fill
+v3 o6 f64v4f64v5f64v6f64r32v8f16r32f16<f64f32.r32f16r64<f16&f64
+
+% section 2 reprise
+[3 m22 ] m28 m22 m22 m31
+o3 v8 c16v3>f+16v7f+16v3f+16v8f16f16<d64d16.&d64r32.v1d64d64v3d64v4d64
+v6d64v8d16r16d16r16d16g16
+
+% section 3
+[7 m22 ] m28
+[3 m22 ] m31 m22 m22
+
+% ending
+o3 v1g+64v2g+64v3g+64v4g+64v5d+64v6d+64v7e64v8e64c16v3>f+16v8<d16v3>f+16
+v7<f+16v3>f+16v8<d16v3>f+16v7f+16v8<d16g16g16v7f+16v8f16
+c8v6>f+16f+16v8<c8v6>f+16f+16v8f16f16<f8d8v2>f+64v3f+64v4f+64v5f+64
+v4f+64v5f+64v6f+64v7f+64
+v6<d64v8d32.d16f+8>f8<f8d2
+t63 r1&r2
+
+% sync
+% t255 o3 r16 c16
+[255 r1]
 
 %-~-~-~-~-~-~-~-~-~-~-~-~-~-%   MACRO   %-~-~-~-~-~-~-~-~-~-~-~-~-~-%
 
-% m1: amen
-@ o3 c16 f+16 c16 f+16 o4 d16 o3 f+16 f+16 o4 d128d64.&d32 o3 f+16 o4 d16 o3 c16 f+16 o4 d16 o3 f+16 f+128f+64.&f+32 f+16
+% m1 - lil' smoochy arpeggio
+@ o6 c32&<g+32&d+32&c32&<g+32&d+
 
-% m2: bass
-@ o1 c8r16c16r8c16r16r2
+% m2 - swell bassline
+@ o2 v8 a+16>c32<a+2&a+32<a+64 r16.r64 >d+16f16<a+16 r16
 
-% m3: arp
-@ o6 [8 p90 d32&c32<&g32&e32& ] r1
+% m3 - beat 1-1
+@ o3 v8 c8r8 v6 > f+8 v6 <c8d8r8 v6 >f+8 v8 <c8
+v6 > f+8r8f+8 v8 <c8d64 d16.&d64 r8 v8 >f+8 v8 <c8
 
+% m4 - beat 1-2
+@ v6 o4 f+8r8f+8 v8 <c8d8 v6 g64 v8 g16.&g64 v6 > f+8 v8 <c8
+v6 > f+8r8f+8 v8 <c8d64d16.&d64r8>f64f16.&f64<f8
+
+% m5 - arpeggio
+@ v5 o5 f16v1<fv3a+v1>fv3d+v1<a+v3d+v1>d+v3<a+v1d+v3fv1a+
+
+% m6 - ch1 section 1-1
+@ v6 o4 g8&g32.r8.r64f8.&f32.r4r64 d+8.&d+32. r2.r64 d+16 r8. d+16r2r8.d+8 r8d+8r2d+8 r8
+% m7 - ch2 section 1-1
+@ v6 o4 d+8&d+32.r8.r64d8.&d32.r4r64c8.&c32.r2.r64c16r8.c16r2r8.<a+8 r8a+8r2a+8 r8
+% m8 - ch3 section 1-1
+@ v6 o3 a+8&a+32.r8.r64a+8.&a+32.r4r64a+8.&a+32.r2.r64a16r8. a16r2r8.g+8 r8g+8r2g+8 r8
+% m9 - ch4 section 1-1
+@ v6 o3 f8&f32.r8.r64f8.&f32.r4r64g8.&g32.r2.r64f16r8. f16r2r8.f8 r8f8r2f8 r8
+% m10 - ch5 section 1-1
+@ o2 v8 d+8>d+32.r16r64<d+32r16.d8a+64r16.r64>c32&d16.<a+16r16<a+32&>c8.&c32
+>g64r16.r64d+64r16.r64<d+16&r16d+32&f32r16<d+8e16r16f16r8.
+f16r16>>c8d+16r16<<g8g+16r16a32r16.a+8
+>a+64r16.r64<a+8d+64r16.r64>>d+16r16<d+64r16.r64<a+8>>c8d+32f16.
+
+% m11 - beat 1-3
+@ v6 o4 f+8r8f+8 v8 o3 c8d8 v6 g64 v8 g16.&g64 v6 > f+8 v8 <c8
+g16g16c16r16g8c8d64d16.&d64 v6 >a8 v8 <d64d16.&d64g8
+
+% m12 - ch1 section 1-3
+@ v6 o4 g+8>e32.r16r64<e32.r16r64f+8.&f+32.r64a32b16.r8d+32e8.&e64 r2r64e4e16r8.
+a16r8.g+16r8.e16r8.e8 r8a16.&a64a+64b32r16.g+16r8.e16r16c+8e16 r16
+% m13 - ch2 section 1-3
+@ v6 o4 e8&e32.r8.r64d+8.&d+32.r4r64c+8.& c+32.r2r64c4c+16r8. c+16r2r8.<b8 r2.b8 r8
+% m14 - ch3 section 1-3
+@ v6 o3 b8&b32.r8.r64b8.&b32.r4r64b8.& b32.r2r64a16a+8.a16r8. a16r2r8.a8 r2.a8 r8
+% m15 - ch4 section 1-3
+@ v6 o3 f+8&f+32.r8.r64f+8.&f+32.r4r64g+8.&g+32.r2r64f4f+16r8. f+16r2r8.f+8 r2.f+8 r8
+% m16 - ch5 section 1-3
+@ v8 o2 g+8&>e32.r16r64<e32r16.f+8b64r16.r64a32&b16.r8<b32&>e8.&e32
+>g+64r16.r64e64r16.r64<e16r16e32&f+32r16<g8&f16r16f+16r8.
+>a16r16>e64r16.r64<g+32&a32&g+16r8e16r16<a+8&b8
+>b64r16.r64>a16.&a64a+64b32r16.g+16r16<e64r16.r64<b8>>c+8e16 r16
+
+% m17 - ch1 section 1-4
+@ v6 o4 r8 g+8r4f+8r4.  f8&e8d+8&e16r8.f+32&g+16.e32.r16r64c+16r8.  e16r2r8.e8  r8e8r2e8 r8
+% m18 - ch2 section 1-4
+@ v6 o4 r8e8r4d+8r4.  d8&c+8c8&c+16r4.r16<a+16r8.  >c+16r2r8.<b8  r8b8r2b8 r8
+% m19 - ch3 section 1-4
+@ v6 o3 r8b8r4b8r4.  >c8&<b8a+8&b16r4.r16f+16r8.  a+16r2r8.a8  r8a8r2a8 r8
+% m20 - ch4 section 1-4
+@ v6 o3 r8f+8r4f+8r4.  a8&g+8g8&g+16r4.r16e16r8.  f+16r2r8.f+8  r8f+8r2f+8 r8
+% m21 - ch5 section 1-4
+@ v8 o2 r8e8>e32r16.<b64r16.r64d+8>d+64r4r16.r64
+<d8&c+8c8&c+16r16e16&f+16<e8&f16r16f+16r8.
+f+16r16>>c+8e16r16<<g+8a16r16a+32r16.b8
+>b64r16.r64<b8e64r32.>a64r32.>e16b16<e16<b64r32.>>c+64&d32.&e16<e64r32.b64r32.d16&f+16
+
+% m22 - beat 2-1
+@ v8c16v3>f+v7<f+v3>f+v8<dv3>f+v7<f+v3>f+v6f+v3f+v7f+v3f+v8<dv3>f+v7<f+v3>f+
+
+% m23 - ch1 section 2-1
+@ v6 o4 g+8g64&v5f+64&v4f64&v3e64&v2d+64&v1d64r4.r32v6d64r32.d64r32.d64r32.d64r32.c+64r16.r64
+e32f+8&f+32g+16r4d64r32.d64r32.d64r32.d64r32.c+64r16.r64e64 r16r32.
+% m24 - ch2 section 2-1
+@ v6 o4 d8r2<b64r32.b64r32.b64r32.b64r32.b64r16.r64
+>d8.e16r4<b64r32.b64r32.b64r32.b64r32.b64r16.r64b64 r16r32.
+% m25 - ch3 section 2-1
+@ v6 o3 b8r2.r8  a8.b16 r2.
+% m26 - ch4 section 2-1
+@ v6 o3 e8r2.r8  e8.f+16 r2.
+% m27 - ch5 section 2-1
+@ v8 o2 e8<b64r32.>g+16<e64r32.e64r32.>d16<e64r32.>>d64r32.<g16<e16d16g16&g+16>g+64r32.e16
+d16&c+16d32r32e16<e64r32.>g64r32.g+16<e64r32.>e16<b64r32.e16d16f+32&g16.&f+16.&f+64 r64
+
+% m28 - kit fill
+@ o4 v6 f+8 v8 o5 f64f32.f16 o4 f16f16 o3 f8 v6 >f+8 v2 <g64 v3 g64 v6 g64 v6 g64 v8 g16d64
+d16.&d64>d16<d16
+
+% m29 - swell arpeggio
+@ i11 v8 [16 o6g64&d+64&c64&<g+64& ]
+
+% m30 - cheeky little arp
+@ v8 [8 o5g+64&d64&<b64&g+64& ] r2 r1
+
+% m31 - beat 2-2
+@ o3 v8 c16v4>f+16v7<f+16v5>f+16f+16v7f+16v8<d64d32.v5>f+16v7<f+16v8d16
+v5>f+16v8<c+16d16v5>f+16v7<f+16v8f+16
+
+% m32 - ch1 section 3-1
+@ v6 o4 e16r8e32r16.e32r8r32e64r8.r32.e16 r8.
+% m33 - ch2 section 3-1
+@ v6 o3 b16r8>d32r16.<b64r8r32.>d64r8.r32.c+16 r8.
+% m34 - ch3 section 3-1
+@ v6 o3 g16r8b32r8.r32d32r32b64r32.d32r8r32b16 r8.
+% m35 - ch4 section 3-1
+@ v6 o3 e16r16<b64r32.>g32r8r32<a64r16.r64>g64r16.r64e64r16.r64g16r16<b64r32.>g64 r32.
+% m36 - ch5 section 3-1
+@ v8 o2 e8r16e32r32a64r32.e32r16.g16&a32r32>e32r16.<b64r32.e16d32r16.b64 r32.
+
+% m37 - ch1 section 3-2
+@ v6 o4 e16r8g32r16.e32r8r32e32r8r32d16r8d+16 r16
+% m38 - ch2 section 3-2
+@ v6 o4 d16r8e32r16.<b32r8r32>d32r8r32<b16r8>c16 r16
+% m39 - ch3 section 3-2
+@ v6 o3 b16r8>d32r4.r16.<a16r8a+16 r16
+% m40 - ch4 section 3-2
+@ v6 o3 g16r16<b64r32.>b32r32<a64r16.r64>g64r32.d32r32b32r32d32r32e64r32.f16r16g64r32.f+16 r16
+% m41 - ch5 section 3-2
+@ v8 o2 e32.r64>b64r32.>e64r32.<a64r32.<a64r32.>g16&a32r32<g16&a32r32e32r16.d32r8r32d+32r32>d+32r32
+
+% m42 - ch5 lil' bass bit #1
+@ o1 v8 r8.d+8&e16r16f16r8.
+f16r16>>c8d+16r16<<g8g+16r16a32r16.a+8
+>a+64r16.r64<a+8d+64r16.r64>>d+16r16<d+64r16.r64<b8>>c+8e32f+16.
+% m43 - ch5 lil' bass bit #2
+@ o2 v8 e8<b64r32.>g+16<e64r32.e64r32.>d16<e64r32.>>d64r32.d64r32.c+32.r16r64d16&e16<g+64r32.
+% m44 - ch5 lil' bass bit #3
+@ v8 o2 r8e16&e64r32.a64r32.e32r32>g16&g+16&g+64r32.
+% m45 - ch6 section 1
+@ [2 i7 o5 d+1&d [5 r1 ] i10 o6 d+1 ]
+% m46 - ch7 tiny arp
+@ o5 f16v1<fv3a+v1>fv3d+v1<a+v3d+v1>d+
+% m47 - ch1 lil' snippet
+@ d64r32.d64r32.d64r32.
+d64r32.c+64r16.r64d64r32.e64
+% m48 - ch2 lil' snippet
+@ v6 o4 d8r4<b64r32.b64r32.b64r32.b64r32.b64r16.r64b64r32.b64
 %===================================================================%
