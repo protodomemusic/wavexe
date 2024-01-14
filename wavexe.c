@@ -36,7 +36,7 @@
 *                Remaster: 14th February 2022
 **************************************************************/
 
-// #define LINUX
+#define LINUX
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +46,7 @@
 #include <time.h>
 #include <math.h>
 
-#define PLAY_TIME        130    // duration of recording in seconds
+#define PLAY_TIME        120    // duration of recording in seconds
 #define SAMPLE_RATE      44100  // cd quality audio
 #define TOTAL_CHANNELS   2      // stereo file
 #define TOTAL_SAMPLES    (PLAY_TIME * TOTAL_CHANNELS) * SAMPLE_RATE
@@ -457,7 +457,7 @@ int main()
 		configure_instrument(v, 0);
 	}
 
-	// if the data pointers are configured in the loop above, it sets all but
+	// if the data pointers are configured in the loop below, it sets all but
 	// the last element in the array to zero once the loop resets. this behaviour
 	// was only seen in 'Linux for ChromeOS', but better to play it safe honestly
 	for (uint8_t v = 0; v < TOTAL_VOICES; v++)

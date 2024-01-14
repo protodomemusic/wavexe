@@ -1,6 +1,9 @@
 # wavexe
 *Tiny Executable Wavetable Synthesizer*
 
+**NOTICE: This project has been completely superseded by SUPER WAVEXE --->  https://github.com/protodomemusic/super-wavexe**
+I'll leave extant for future reference though.
+
 Really simple little program that musically messes with wavecycles and bakes them into a wave file. **Heavily** (and sporadically) in development right now, so it's pretty limited. The sequencing is currently powered by the mmml language, for which you can find the compiler here --->  https://github.com/protodomemusic/mmml/tree/master/compiler
 
 You can probably work out how to build from the included script but, once you've built the mmml compiler from source, you'll need to do the following with a valid mmml file (example included in repo):
